@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
@@ -21,6 +20,7 @@ function ShopMarketplaceContent() {
   const [sortBy, setSortBy] = useState<string>('featured');
   const [paySmallSmallOnly, setPaySmallSmallOnly] = useState<boolean>(false);
   const [priceRange, setPriceRange] = useState<string>('all');
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState<boolean>(false);
 
   useEffect(() => {
     const catParam = searchParams.get('category');
@@ -73,18 +73,39 @@ function ShopMarketplaceContent() {
         <div className="container">
           <div className="eyebrow">CAF Interior and Exterior Service • Official Marketplace</div>
           <h1 className="shop-hero-title">
-            {activeCategoryObj ? activeCategoryObj.name : 'Luxury Furniture Marketplace'}
+            {activeCategoryObj ? activeCategoryObj.name : 'Luxury Furniture & Decor Marketplace'}
           </h1>
           <p className="shop-hero-sub">
             {activeCategoryObj
               ? activeCategoryObj.description
-              : 'Explore our 14 handcrafted furniture departments. Pay outright or spread your investment with Pay Small Small.'}
+              : `Explore our ${FURNITURE_CATEGORIES.length} handcrafted furniture and interior design decor departments. Pay outright or spread your investment with Pay Small Small.`}
           </p>
         </div>
       </section>
 
       <section className="shop-body-section">
         <div className="container">
+          {/* Mobile Horizontal Quick-Category Pill Scroller */}
+          <div className="mobile-category-scroller" aria-label="Quick category filter">
+            <button
+              type="button"
+              className={`cat-scroll-pill ${selectedCategory === 'all' ? 'active' : ''}`}
+              onClick={() => setSelectedCategory('all')}
+            >
+              All ({PRODUCTS_CATALOG.length})
+            </button>
+            {FURNITURE_CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                className={`cat-scroll-pill ${selectedCategory === cat.slug ? 'active' : ''}`}
+                onClick={() => setSelectedCategory(cat.slug)}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+
           {/* Top Search & Filter Control Bar */}
           <div className="shop-controls-bar">
             <div className="shop-search-input-wrap">
@@ -97,6 +118,7 @@ function ShopMarketplaceContent() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by product name, material (mahogany, bouclé, marble), or category..."
+                aria-label="Filter products by keyword"
               />
               {searchQuery && (
                 <button
@@ -110,6 +132,15 @@ function ShopMarketplaceContent() {
             </div>
 
             <div className="shop-filters-group">
+              <button
+                type="button"
+                className="mobile-sidebar-toggle-btn"
+                onClick={() => setMobileSidebarOpen((prev) => !prev)}
+                aria-expanded={mobileSidebarOpen}
+              >
+                ☰ {mobileSidebarOpen ? 'Hide Departments' : `All ${FURNITURE_CATEGORIES.length} Departments`}
+              </button>
+
               <label className="pss-filter-toggle">
                 <input
                   type="checkbox"
@@ -147,15 +178,23 @@ function ShopMarketplaceContent() {
           </div>
 
           <div className="shop-layout-grid">
-            {/* Sidebar: All 14 Categories */}
-            <aside id="categories" className="shop-sidebar">
+            {/* Sidebar: All 15 Categories (Collapsible on mobile/tablet) */}
+            <aside
+              id="categories"
+              className={`shop-sidebar ${mobileSidebarOpen ? 'mobile-open' : ''}`}
+            >
               <div className="sidebar-box">
-                <h3 className="sidebar-title">Furniture Categories (14)</h3>
+                <h3 className="sidebar-title">
+                  Departments ({FURNITURE_CATEGORIES.length})
+                </h3>
                 <div className="sidebar-cat-list">
                   <button
                     type="button"
                     className={`sidebar-cat-btn ${selectedCategory === 'all' ? 'active' : ''}`}
-                    onClick={() => setSelectedCategory('all')}
+                    onClick={() => {
+                      setSelectedCategory('all');
+                      setMobileSidebarOpen(false);
+                    }}
                   >
                     <span>All Luxury Collections</span>
                     <span className="count">{PRODUCTS_CATALOG.length}</span>
@@ -166,7 +205,10 @@ function ShopMarketplaceContent() {
                       key={cat.id}
                       type="button"
                       className={`sidebar-cat-btn ${selectedCategory === cat.slug ? 'active' : ''}`}
-                      onClick={() => setSelectedCategory(cat.slug)}
+                      onClick={() => {
+                        setSelectedCategory(cat.slug);
+                        setMobileSidebarOpen(false);
+                      }}
                     >
                       <span>{cat.name}</span>
                       <span className="count">{cat.productCount}</span>
@@ -216,11 +258,19 @@ function ShopMarketplaceContent() {
               {filteredProducts.length === 0 ? (
                 <div className="shop-empty-box">
                   <h3>No matching furniture pieces found</h3>
-                  <p>
+                  <p style={{ marginTop: '0.5rem', color: '#57534e' }}>
                     Try resetting your search filters, or commission our bespoke workshop to craft
                     your exact specification.
                   </p>
-                  <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1.5rem' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: '1rem',
+                      justifyContent: 'center',
+                      flexWrap: 'wrap',
+                      marginTop: '1.5rem',
+                    }}
+                  >
                     <button
                       type="button"
                       className="btn-gold"
@@ -261,11 +311,17 @@ export default function ShopPage() {
   return (
     <>
       <Navbar />
-      <Suspense fallback={<div style={{ padding: '8rem 2rem', textAlign: 'center' }}>Loading Luxury Marketplace...</div>}>
+      <Suspense
+        fallback={
+          <div className="loading-skeleton-screen">
+            <span className="orbital-core" />
+            <p>Loading CAF Interiors Luxury Marketplace...</p>
+          </div>
+        }
+      >
         <ShopMarketplaceContent />
       </Suspense>
       <Footer />
     </>
   );
 }
-

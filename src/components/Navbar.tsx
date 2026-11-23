@@ -11,6 +11,7 @@ export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
   const {
+    user,
     cart,
     cartOpen,
     setCartOpen,
@@ -71,6 +72,17 @@ export default function Navbar() {
   }, [pathname]);
 
   useEffect(() => {
+    if (mobileMenuOpen || cartOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen, cartOpen]);
+
+  useEffect(() => {
     if (searchOpen && searchInputRef.current) {
       searchInputRef.current.focus();
     }
@@ -79,17 +91,18 @@ export default function Navbar() {
   const liveSearchResults =
     searchQuery.trim().length > 1
       ? PRODUCTS_CATALOG.filter(
-        (p) =>
-          p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          p.categoryName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          p.shortDescription.toLowerCase().includes(searchQuery.toLowerCase())
-      ).slice(0, 5)
+          (p) =>
+            p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            p.categoryName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            p.shortDescription.toLowerCase().includes(searchQuery.toLowerCase())
+        ).slice(0, 5)
       : [];
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
     setSearchOpen(false);
+    setMobileMenuOpen(false);
     router.push(`/shop?search=${encodeURIComponent(searchQuery.trim())}`);
   };
 
@@ -110,24 +123,6 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
     window.open(getWhatsAppUrl(message), '_blank', 'noopener,noreferrer');
   };
 
-  const handleCartCheckoutWhatsApp = () => {
-    const lines = cart.map(
-      (item, i) =>
-        `${i + 1}. ${item.name} (${item.selectedSize}, ${item.selectedColor}) × ${item.quantity} — ${item.paymentPlan === 'PAY_SMALL_SMALL'
-          ? `Pay Small Small (${item.instalmentMonths} Months | Initial Deposit: ${formatNaira(
-            (item.initialDepositPerUnit || item.unitPrice) * item.quantity
-          )})`
-          : `Full Payment: ${formatNaira(item.unitPrice * item.quantity)}`
-        }`
-    );
-    const msg = `Hello CAF Interiors, I would like to proceed with my order:\n\n${lines.join(
-      '\n'
-    )}\n\nTotal Order Value: ${formatNaira(cartTotalFullValue)}\nAmount Payable Today: ${formatNaira(
-      cartPayableToday
-    )}`;
-    window.open(getWhatsAppUrl(msg), '_blank', 'noopener,noreferrer');
-  };
-
   return (
     <>
       {/* Top Announcement Bar */}
@@ -137,17 +132,17 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
             <strong className="gold-text">CAF Interior and Exterior Service</strong> — Luxury Begins Beneath.
           </span>
           <span className="announcement-divider">|</span>
-          <span className="announcement-item">
-            <strong>Pay Small Small Available:</strong> Flexible 2–6 Month Instalments on Eligible Luxury Furniture
+          <span className="announcement-item hide-on-small-mobile">
+            <strong>Pay Small Small:</strong> Flexible 2–6 Month Instalments
           </span>
-          <span className="announcement-divider">|</span>
+          <span className="announcement-divider hide-on-small-mobile">|</span>
           <a
             href={getWhatsAppUrl('Hello CAF Interiors, I need assistance from your design concierge.')}
             target="_blank"
             rel="noopener noreferrer"
             className="announcement-link"
           >
-            WhatsApp Concierge: +234 903 026 2160
+            WhatsApp: +234 903 026 2160
           </a>
           <span className="announcement-divider">|</span>
           <Link href="/admin" className="announcement-link">
@@ -160,7 +155,7 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
       <header className={`site-header ${scrolled ? 'scrolled' : ''}`}>
         <div className="header-inner">
           {/* Brand Logo */}
-          <Link href="/" className="brand-logo">
+          <Link href="/" className="brand-logo" aria-label="CAF Interiors Home">
             <div className="brand-monogram" aria-hidden="true">
               CAF
             </div>
@@ -170,7 +165,7 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
             </div>
           </Link>
 
-          {/* Main 9-Item Navigation */}
+          {/* Main 9-Item Desktop Navigation */}
           <nav className="desktop-nav" aria-label="Primary Marketplace Navigation">
             <Link href="/" className={`nav-link ${pathname === '/' ? 'active' : ''}`}>
               Home
@@ -190,8 +185,9 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
                 className="nav-link nav-dropdown-trigger"
                 onClick={() => setCatDropdownOpen((prev) => !prev)}
                 aria-expanded={catDropdownOpen}
+                aria-haspopup="true"
               >
-                <span>Furniture Categories</span>
+                <span>Categories</span>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="m6 9 6 6 6-6" />
                 </svg>
@@ -201,8 +197,8 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
                 <div className="mega-dropdown">
                   <div className="mega-dropdown-header">
                     <div>
-                      <span className="mega-eyebrow">14 Curated Departments</span>
-                      <h4>CAF Luxury Furniture Marketplace</h4>
+                      <span className="mega-eyebrow">{FURNITURE_CATEGORIES.length} Curated Departments</span>
+                      <h4>CAF Luxury Furniture &amp; Decor Marketplace</h4>
                     </div>
                     <Link href="/shop" className="mega-view-all" onClick={() => setCatDropdownOpen(false)}>
                       View Full Catalog &rarr;
@@ -216,7 +212,7 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
                         className="mega-cat-item"
                         onClick={() => setCatDropdownOpen(false)}
                       >
-                        <img src={cat.image} alt={cat.name} className="mega-cat-thumb" />
+                        <img src={cat.image} alt={cat.name} className="mega-cat-thumb" loading="lazy" />
                         <div>
                           <div className="mega-cat-name">{cat.name}</div>
                           <div className="mega-cat-count">{cat.productCount} Pieces</div>
@@ -228,13 +224,22 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
               )}
             </div>
 
-            <Link href="/interior-design" className={`nav-link ${pathname === '/interior-design' ? 'active' : ''}`}>
+            <Link
+              href="/interior-design"
+              className={`nav-link ${pathname === '/interior-design' ? 'active' : ''}`}
+            >
               Interior Design
             </Link>
-            <Link href="/custom-furniture" className={`nav-link ${pathname === '/custom-furniture' ? 'active' : ''}`}>
+            <Link
+              href="/custom-furniture"
+              className={`nav-link ${pathname === '/custom-furniture' ? 'active' : ''}`}
+            >
               Custom Furniture
             </Link>
-            <Link href="/pay-small-small" className={`nav-link nav-link-gold ${pathname === '/pay-small-small' ? 'active' : ''}`}>
+            <Link
+              href="/pay-small-small"
+              className={`nav-link nav-link-gold ${pathname === '/pay-small-small' ? 'active' : ''}`}
+            >
               Pay Small Small
             </Link>
             <Link href="/about" className={`nav-link ${pathname === '/about' ? 'active' : ''}`}>
@@ -243,7 +248,10 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
             <Link href="/contact" className={`nav-link ${pathname === '/contact' ? 'active' : ''}`}>
               Contact
             </Link>
-            <Link href="/account" className={`nav-link ${pathname?.startsWith('/account') ? 'active' : ''}`}>
+            <Link
+              href="/account"
+              className={`nav-link ${pathname?.startsWith('/account') ? 'active' : ''}`}
+            >
               My Account
             </Link>
           </nav>
@@ -252,12 +260,12 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
           <div className="header-utilities">
             <button
               type="button"
-              className="utility-icon-btn"
+              className={`utility-icon-btn ${searchOpen ? 'active' : ''}`}
               onClick={() => setSearchOpen((prev) => !prev)}
               aria-label="Search furniture and interior services"
               title="Search Marketplace"
             >
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
                 <circle cx="11" cy="11" r="8" />
                 <path d="m21 21-4.3-4.3" />
               </svg>
@@ -271,21 +279,34 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
                 aria-label="Compare selected products"
                 title="Compare Products"
               >
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
                   <path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
                 </svg>
                 <span className="utility-badge">{compareIds.length}</span>
               </button>
             )}
 
+            <Link
+              href="/account"
+              className={`utility-icon-btn ${pathname?.startsWith('/account') ? 'active' : ''}`}
+              aria-label="My Account"
+              title={user ? `Signed in as ${user.name}` : 'My Account / Sign In'}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              {user && <span className="utility-online-dot" aria-hidden="true" />}
+            </Link>
+
             <button
               type="button"
               className="utility-icon-btn cart-trigger-btn"
               onClick={() => setCartOpen(true)}
-              aria-label="Open shopping cart"
+              aria-label={`Open shopping bag (${cartCount} items)`}
               title="Shopping Bag"
             >
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
                 <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
                 <path d="M3 6h18" />
                 <path d="M16 10a4 4 0 0 1-8 0" />
@@ -298,7 +319,7 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
               className={`mobile-menu-toggle ${mobileMenuOpen ? 'active' : ''}`}
               onClick={() => setMobileMenuOpen((prev) => !prev)}
               aria-expanded={mobileMenuOpen}
-              aria-label="Toggle mobile navigation"
+              aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
             >
               <div className="hamburger-lines">
                 <span />
@@ -314,7 +335,7 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
           <div className="header-search-panel">
             <div className="container">
               <form onSubmit={handleSearchSubmit} className="header-search-form">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="11" cy="11" r="8" />
                   <path d="m21 21-4.3-4.3" />
                 </svg>
@@ -323,8 +344,9 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search 6x6 upholstered beds, sectionals, marble dining sets, wardrobes, TV consoles..."
+                  placeholder="Search 6x6 beds, sectionals, marble dining, wall art, rugs, TV consoles..."
                   className="header-search-input"
+                  aria-label="Search CAF Interiors products"
                 />
                 <button type="submit" className="btn-gold header-search-submit">
                   Search
@@ -355,9 +377,7 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
                       </div>
                       <div className="live-search-price">
                         <span>{formatNaira(item.price)}</span>
-                        {item.paySmallSmall.eligible && (
-                          <small>Pay Small Small Eligible</small>
-                        )}
+                        {item.paySmallSmall.eligible && <small>Pay Small Small Eligible</small>}
                       </div>
                     </Link>
                   ))}
@@ -375,15 +395,36 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
         aria-hidden="true"
       />
       <aside className={`mobile-drawer ${mobileMenuOpen ? 'open' : ''}`} aria-label="Mobile Navigation">
-        <div>
+        <div className="mobile-drawer-top-bar">
+          <div className="brand-logo">
+            <div className="brand-monogram" aria-hidden="true">
+              CAF
+            </div>
+            <div className="brand-text">
+              <span className="brand-name">CAF INTERIORS</span>
+              <span className="brand-tagline">Luxury Marketplace</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="drawer-close-btn"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-label="Close menu"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="mobile-drawer-scroll-content">
           <form onSubmit={handleSearchSubmit} className="mobile-search-box">
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search luxury furniture..."
+              placeholder="Search furniture & decor..."
+              aria-label="Search furniture and decor"
             />
-            <button type="submit">Go</button>
+            <button type="submit">Search</button>
           </form>
 
           <nav className="mobile-nav-list">
@@ -395,33 +436,61 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
               <span>Shop Marketplace</span>
               <span className="index">02</span>
             </Link>
-            <Link href="/shop#categories" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>
-              <span>Furniture Categories (14)</span>
+            <Link
+              href="/shop?category=interior-design-decor"
+              className="mobile-nav-link"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <span>Interior Design Decor</span>
               <span className="index">03</span>
             </Link>
-            <Link href="/interior-design" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>
-              <span>Interior Design Services</span>
+            <Link
+              href="/interior-design"
+              className="mobile-nav-link"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <span>Interior Design Services (13)</span>
               <span className="index">04</span>
             </Link>
-            <Link href="/custom-furniture" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>
-              <span>Custom Furniture</span>
+            <Link
+              href="/custom-furniture"
+              className="mobile-nav-link"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <span>Custom Furniture Ordering</span>
               <span className="index">05</span>
             </Link>
-            <Link href="/pay-small-small" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>
-              <span className="gold-text">Pay Small Small</span>
+            <Link
+              href="/pay-small-small"
+              className="mobile-nav-link"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <span className="gold-text">Pay Small Small Plans</span>
               <span className="index">06</span>
             </Link>
             <Link href="/about" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>
               <span>About Us</span>
               <span className="index">07</span>
             </Link>
-            <Link href="/contact" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>
-              <span>Contact</span>
+            <Link
+              href="/contact"
+              className="mobile-nav-link"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <span>Contact &amp; Concierge</span>
               <span className="index">08</span>
             </Link>
-            <Link href="/account" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>
-              <span>My Account</span>
+            <Link
+              href="/account"
+              className="mobile-nav-link"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <span>{user ? `My Account (${user.name.split(' ')[0]})` : 'My Account / Sign In'}</span>
               <span className="index">09</span>
+            </Link>
+            <Link href="/admin" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>
+              <span className="gold-text">Admin Command Center</span>
+              <span className="index">10</span>
             </Link>
           </nav>
         </div>
@@ -430,7 +499,9 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
           <p className="mobile-drawer-slogan">&ldquo;Your Comfortability Is Our Priority.&rdquo;</p>
           <p className="mobile-drawer-sub-slogan">Luxury Begins Beneath.</p>
           <a
-            href={getWhatsAppUrl('Hello CAF Interiors, I would like to inquire about your furniture and interior design services.')}
+            href={getWhatsAppUrl(
+              'Hello CAF Interiors, I would like to inquire about your furniture and interior design services.'
+            )}
             target="_blank"
             rel="noopener noreferrer"
             className="mobile-drawer-cta"
@@ -452,7 +523,12 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
             <h3>Your Luxury Selection ({cartCount})</h3>
             <p>CAF Interior and Exterior Service</p>
           </div>
-          <button type="button" className="drawer-close-btn" onClick={() => setCartOpen(false)}>
+          <button
+            type="button"
+            className="drawer-close-btn"
+            onClick={() => setCartOpen(false)}
+            aria-label="Close shopping bag"
+          >
             ✕
           </button>
         </div>
@@ -483,7 +559,9 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
                   {item.paymentPlan === 'PAY_SMALL_SMALL' ? (
                     <div className="cart-item-plan-badge">
                       Pay Small Small ({item.instalmentMonths} Months) — Deposit Today:{' '}
-                      <strong>{formatNaira((item.initialDepositPerUnit || item.unitPrice) * item.quantity)}</strong>
+                      <strong>
+                        {formatNaira((item.initialDepositPerUnit || item.unitPrice) * item.quantity)}
+                      </strong>
                       <small>Full Price: {formatNaira(item.unitPrice * item.quantity)}</small>
                     </div>
                   ) : (
@@ -492,11 +570,19 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
 
                   <div className="cart-item-actions">
                     <div className="qty-stepper">
-                      <button type="button" onClick={() => updateQuantity(idx, item.quantity - 1)}>
+                      <button
+                        type="button"
+                        onClick={() => updateQuantity(idx, item.quantity - 1)}
+                        aria-label="Decrease quantity"
+                      >
                         −
                       </button>
                       <span>{item.quantity}</span>
-                      <button type="button" onClick={() => updateQuantity(idx, item.quantity + 1)}>
+                      <button
+                        type="button"
+                        onClick={() => updateQuantity(idx, item.quantity + 1)}
+                        aria-label="Increase quantity"
+                      >
                         +
                       </button>
                     </div>
@@ -605,10 +691,11 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
                       {comparedProducts.map((prod) => (
                         <td key={prod.id}>
                           {prod.paySmallSmall.eligible
-                            ? `Eligible (${prod.paySmallSmall.fixedDepositAmount
-                              ? `${formatNaira(prod.paySmallSmall.fixedDepositAmount)} Deposit`
-                              : `${Math.round(prod.paySmallSmall.depositPercentage)}% Deposit`
-                            } • Up to ${Math.max(...prod.paySmallSmall.allowedDurationsMonths)} Months)`
+                            ? `Eligible (${
+                                prod.paySmallSmall.fixedDepositAmount
+                                  ? `${formatNaira(prod.paySmallSmall.fixedDepositAmount)} Deposit`
+                                  : `${Math.round(prod.paySmallSmall.depositPercentage)}% Deposit`
+                              } • Up to ${Math.max(...prod.paySmallSmall.allowedDurationsMonths)} Months)`
                             : 'Direct Purchase Only'}
                         </td>
                       ))}
@@ -620,7 +707,7 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
                       ))}
                     </tr>
                     <tr>
-                      <td>Frame & Structure</td>
+                      <td>Frame &amp; Structure</td>
                       {comparedProducts.map((prod) => (
                         <td key={prod.id}>{prod.materials.frame}</td>
                       ))}
@@ -721,7 +808,7 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Colour & Finishing</label>
+                  <label className="form-label">Colour &amp; Finishing</label>
                   <input
                     type="text"
                     className="form-input"
@@ -746,7 +833,7 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Your City & State (Nigeria)</label>
+                  <label className="form-label">Your City &amp; State (Nigeria)</label>
                   <input
                     type="text"
                     className="form-input"
@@ -779,7 +866,7 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
 
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="luxury-toast" role="status">
+        <div className="luxury-toast" role="status" aria-live="polite">
           <span className="toast-diamond" />
           <span>{toastMessage}</span>
         </div>
@@ -787,4 +874,3 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
     </>
   );
 }
-

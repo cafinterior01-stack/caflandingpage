@@ -37,6 +37,11 @@ export default function ProductCard({ product }: ProductCardProps) {
     setCartOpen(true);
   };
 
+  const discountPercent =
+    product.originalPrice && product.originalPrice > product.price
+      ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+      : 0;
+
   return (
     <article className="luxury-product-card">
       <div className="product-card-media">
@@ -62,12 +67,12 @@ export default function ProductCard({ product }: ProductCardProps) {
           {product.paySmallSmall.eligible && (
             <span className="badge-pss">Pay Small Small</span>
           )}
-          {product.isBestSeller && <span className="badge-dark">Best Seller</span>}
+          {discountPercent > 0 && (
+            <span className="badge-dark">Save {discountPercent}%</span>
+          )}
+          {product.isBestSeller && <span className="badge-ivory">Best Seller</span>}
           {product.isNewArrival && !product.isBestSeller && (
             <span className="badge-ivory">New Arrival</span>
-          )}
-          {product.isExclusiveOffer && (
-            <span className="badge-gold-outline">Exclusive Offer</span>
           )}
         </div>
 
@@ -77,7 +82,8 @@ export default function ProductCard({ product }: ProductCardProps) {
           className={`product-compare-btn ${isCompared ? 'active' : ''}`}
           onClick={() => toggleCompare(product.id)}
           title={isCompared ? 'Remove from comparison' : 'Compare product'}
-          aria-label="Compare product"
+          aria-label={isCompared ? 'Remove from comparison' : 'Compare product'}
+          aria-pressed={isCompared}
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
@@ -90,7 +96,9 @@ export default function ProductCard({ product }: ProductCardProps) {
           <Link href={`/shop?category=${product.categorySlug}`} className="product-card-category">
             {product.categoryName}
           </Link>
-          <span className="product-card-rating">★ {product.rating.toFixed(1)} ({product.reviewCount})</span>
+          <span className="product-card-rating" aria-label={`Rated ${product.rating} out of 5`}>
+            ★ {product.rating.toFixed(1)} ({product.reviewCount})
+          </span>
         </div>
 
         <Link href={`/product/${product.slug}`} className="product-card-title-link">
@@ -99,7 +107,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
         <p className="product-card-desc">{product.shortDescription}</p>
 
-        {/* Swatches & Lead Time */}
+        {/* Swatches & Availability */}
         <div className="product-card-specs">
           <div className="swatch-row" title="Available Finishes">
             {product.colors.map((c) => (
@@ -112,7 +120,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             ))}
             <span className="swatch-count">{product.sizes.length} Sizes</span>
           </div>
-          <span className="delivery-pill">{product.availabilityLabel.split('—')[0]}</span>
+          <span className="delivery-pill">● {product.availabilityLabel.split('—')[0]}</span>
         </div>
 
         {/* Pricing & Pay Small Small Preview Box */}
@@ -167,18 +175,17 @@ export default function ProductCard({ product }: ProductCardProps) {
 
         <div className="product-card-subactions">
           <Link href={`/product/${product.slug}`} className="subaction-link">
-            View Full Details &amp; Specs
+            View Specs &amp; Gallery
           </Link>
           <button
             type="button"
             className="subaction-link btn-reset"
             onClick={() => openCustomModal({ product })}
           >
-            Request Customisation
+            ✦ Customise Piece
           </button>
         </div>
       </div>
     </article>
   );
 }
-

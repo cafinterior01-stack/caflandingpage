@@ -230,7 +230,7 @@ export default function CustomerAccountPage() {
             </div>
           </div>
 
-          <div className="account-kpi-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+          <div className="account-kpi-grid account-kpi-grid-4">
             <div className="account-kpi-card">
               <small>Orders &amp; Commissions</small>
               <strong>{orders.length + customEnquiries.length}</strong>
@@ -249,50 +249,64 @@ export default function CustomerAccountPage() {
             </div>
           </div>
 
-          {/* Dashboard Tabs */}
-          <div className="showcase-tabs" style={{ marginBottom: '2rem' }}>
-            <button
-              type="button"
-              className={`showcase-tab-btn ${activeTab === 'orders' ? 'active' : ''}`}
-              onClick={() => setActiveTab('orders')}
-            >
-              Orders &amp; Receipts ({orders.length})
-            </button>
-            <button
-              type="button"
-              className={`showcase-tab-btn ${activeTab === 'instalments' ? 'active' : ''}`}
-              onClick={() => setActiveTab('instalments')}
-            >
-              Pay Small Small ({instalmentOrders.length})
-            </button>
-            <button
-              type="button"
-              className={`showcase-tab-btn ${activeTab === 'custom' ? 'active' : ''}`}
-              onClick={() => setActiveTab('custom')}
-            >
-              Custom Furniture &amp; Quotations ({customEnquiries.length})
-            </button>
-            <button
-              type="button"
-              className={`showcase-tab-btn ${activeTab === 'projects' ? 'active' : ''}`}
-              onClick={() => setActiveTab('projects')}
-            >
-              Interior Projects &amp; Milestones ({interiorProjects.length})
-            </button>
-            <button
-              type="button"
-              className={`showcase-tab-btn ${activeTab === 'reminders' ? 'active' : ''}`}
-              onClick={() => setActiveTab('reminders')}
-            >
-              Reminders &amp; Alerts ({notifications.length})
-            </button>
-            <button
-              type="button"
-              className={`showcase-tab-btn ${activeTab === 'profile' ? 'active' : ''}`}
-              onClick={() => setActiveTab('profile')}
-            >
-              Profile
-            </button>
+          {/* Mobile-Friendly Horizontal Scrollable Tabs */}
+          <div className="dashboard-tabs-scroll-wrap">
+            <div className="showcase-tabs" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'orders'}
+                className={`showcase-tab-btn ${activeTab === 'orders' ? 'active' : ''}`}
+                onClick={() => setActiveTab('orders')}
+              >
+                Orders &amp; Receipts ({orders.length})
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'instalments'}
+                className={`showcase-tab-btn ${activeTab === 'instalments' ? 'active' : ''}`}
+                onClick={() => setActiveTab('instalments')}
+              >
+                Pay Small Small ({instalmentOrders.length})
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'custom'}
+                className={`showcase-tab-btn ${activeTab === 'custom' ? 'active' : ''}`}
+                onClick={() => setActiveTab('custom')}
+              >
+                Custom Quotations ({customEnquiries.length})
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'projects'}
+                className={`showcase-tab-btn ${activeTab === 'projects' ? 'active' : ''}`}
+                onClick={() => setActiveTab('projects')}
+              >
+                Interior Projects ({interiorProjects.length})
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'reminders'}
+                className={`showcase-tab-btn ${activeTab === 'reminders' ? 'active' : ''}`}
+                onClick={() => setActiveTab('reminders')}
+              >
+                Reminders &amp; Alerts ({notifications.length})
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'profile'}
+                className={`showcase-tab-btn ${activeTab === 'profile' ? 'active' : ''}`}
+                onClick={() => setActiveTab('profile')}
+              >
+                Profile Settings
+              </button>
+            </div>
           </div>
 
           {/* Tab 1: Orders */}
