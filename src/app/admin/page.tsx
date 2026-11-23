@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import BrandLogo from '@/components/BrandLogo';
@@ -30,7 +31,8 @@ interface AdminAnalytics {
 }
 
 export default function AdminDashboardPage() {
-  const { user, refreshUser, showToast } = useMarketplace();
+  const router = useRouter();
+  const { user, authLoading, logout, showToast } = useMarketplace();
 
   const [activeModule, setActiveModule] = useState<
     | 'analytics'
@@ -130,23 +132,17 @@ export default function AdminDashboardPage() {
   }, []);
 
   useEffect(() => {
-    loadAdminDashboard();
-  }, [loadAdminDashboard]);
-
-  const handleQuickAdminAuth = async () => {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: 'admin@cafinteriors.ng',
-        password: 'CAFAdmin2026!',
-      }),
-    });
-    if (res.ok) {
-      await refreshUser();
-      showToast('Signed in as CAF Interiors Administrator.');
+    if (authLoading) return;
+    if (!user) {
+      router.replace('/admin/login');
+      return;
     }
-  };
+    if (user.role === 'ADMIN') {
+      loadAdminDashboard();
+    } else {
+      setLoading(false);
+    }
+  }, [user, authLoading, router, loadAdminDashboard]);
 
   const handleProductPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -396,6 +392,52 @@ export default function AdminDashboardPage() {
     }
   };
 
+  if (authLoading || (!user && loading)) {
+    return (
+      <>
+        <Navbar />
+        <main className="loading-skeleton-screen" style={{ minHeight: '75vh' }}>
+          <BrandLogo variant="loading" href={null} />
+          <p>Verifying CAF Interiors Administrator Authorisation...</p>
+        </main>
+        <Footer />
+      </>
+    );
+  }
+
+  if (!user || user.role !== 'ADMIN') {
+    return (
+      <>
+        <Navbar />
+        <main className="auth-page-main">
+          <div className="auth-card-container">
+            <div className="auth-luxury-card" style={{ textAlign: 'center' }}>
+              <div className="auth-logo-header" style={{ justifyContent: 'center' }}>
+                <BrandLogo variant="auth" />
+              </div>
+              <span className="eyebrow">403 • Restricted Portal</span>
+              <h1 className="auth-title">Administrator Access Denied</h1>
+              <p className="auth-sub">
+                This portal is restricted exclusively to authorised CAF Interiors administrators.
+                Ordinary customer accounts and unauthenticated visitors cannot access administrative
+                controls.
+              </p>
+              <div style={{ display: 'flex', gap: '0.85rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <Link href="/admin/login" className="btn-gold">
+                  Administrator Sign In
+                </Link>
+                <Link href="/" className="btn-outline-gold">
+                  Return to Public Storefront
+                </Link>
+              </div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </>
+    );
+  }
+
   return (
     <>
       <Navbar />
@@ -418,14 +460,19 @@ export default function AdminDashboardPage() {
               </div>
             </div>
             <div className="account-header-actions">
-              {user?.role !== 'ADMIN' && (
-                <button type="button" className="btn-gold" onClick={handleQuickAdminAuth}>
-                  Activate Admin Session (admin@cafinteriors.ng)
-                </button>
-              )}
               <Link href="/shop" className="btn-outline-gold">
                 View Live Storefront
               </Link>
+              <button
+                type="button"
+                className="btn-outline-gold"
+                onClick={async () => {
+                  await logout();
+                  router.push('/admin/login');
+                }}
+              >
+                Sign Out
+              </button>
             </div>
           </div>
 

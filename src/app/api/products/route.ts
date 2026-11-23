@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PRODUCTS_CATALOG, FURNITURE_CATEGORIES } from '@/lib/catalog-data';
-import { readDb, saveDb } from '@/lib/db-store';
+import { readDb, saveDb, parseSessionToken } from '@/lib/db-store';
 import { Product } from '@/types';
 
 export async function GET(request: NextRequest) {
@@ -63,6 +63,15 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const token = request.cookies.get('caf_session')?.value;
+    const session = parseSessionToken(token);
+    if (!session || session.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'Access denied. Only authorised CAF Interiors administrators can add products.' },
+        { status: session ? 403 : 401 }
+      );
+    }
+
     const body = await request.json();
     const {
       name,

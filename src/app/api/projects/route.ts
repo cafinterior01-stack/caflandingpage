@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ projects: myProjects });
   }
 
-  return NextResponse.json({ projects: db.interiorProjects });
+  return NextResponse.json({ projects: [] });
 }
 
 export async function POST(request: NextRequest) {
@@ -52,8 +52,14 @@ export async function POST(request: NextRequest) {
     const session = parseSessionToken(token);
     const body = await request.json();
 
-    // Update milestone if action === 'UPDATE_MILESTONE'
+    // Update milestone if action === 'UPDATE_MILESTONE' (Strictly ADMIN only)
     if (body.action === 'UPDATE_MILESTONE') {
+      if (!session || session.role !== 'ADMIN') {
+        return NextResponse.json(
+          { error: 'Access denied. Only CAF Interiors Administrators can update project milestones.' },
+          { status: session ? 403 : 401 }
+        );
+      }
       const { projectId, milestoneId, status, completionPercent, deliverableNote } = body;
       const db = readDb();
       const prjIdx = db.interiorProjects.findIndex(

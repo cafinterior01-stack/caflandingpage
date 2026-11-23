@@ -61,7 +61,7 @@ function LoginContent() {
           <BrandLogo variant="auth" />
         </div>
         <span className="eyebrow">CAF Interior and Exterior Service</span>
-        <h1 className="auth-title">Client &amp; Executive Sign In</h1>
+        <h1 className="auth-title">Client Account Sign In</h1>
         <p className="auth-sub">
           Access your orders, Pay Small Small schedules, custom furniture quotations, and interior
           project milestones.
@@ -77,7 +77,7 @@ function LoginContent() {
               className="form-input"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="client@cafinteriors.ng"
+              placeholder="you@example.com"
               required
             />
           </div>
@@ -98,18 +98,6 @@ function LoginContent() {
             {loading ? 'Signing In...' : 'Sign In to My Account'}
           </button>
         </form>
-
-        <div className="demo-credentials-box">
-          <span>Quick Demo Access:</span>
-          <div className="demo-btns-row">
-            <button type="button" onClick={fillDemoClient} className="btn-text-gold">
-              Fill Demo Client
-            </button>
-            <button type="button" onClick={fillDemoAdmin} className="btn-text-gold">
-              Fill CAF Admin
-            </button>
-          </div>
-        </div>
 
         <p className="auth-switch-copy">
           New to CAF Interiors?{' '}

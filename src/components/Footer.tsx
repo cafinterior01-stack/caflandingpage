@@ -78,9 +78,6 @@ export default function Footer() {
               <Link href="/about">About CAF Interiors</Link>
               <Link href="/contact">Contact &amp; Showrooms</Link>
               <Link href="/account">Customer &amp; Project Dashboard</Link>
-              <Link href="/admin" className="gold-text">
-                Executive Administrator Dashboard
-              </Link>
             </nav>
           </div>
 

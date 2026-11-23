@@ -667,14 +667,13 @@ export default function PaySmallSmallPage() {
                               {pay.status.replace(/_/g, ' ')}
                             </span>
 
-                            {pay.status === 'PENDING_VERIFICATION' && (
+                            {user?.role === 'ADMIN' && pay.status === 'PENDING_VERIFICATION' && (
                               <button
                                 type="button"
                                 className="btn-text-gold"
                                 onClick={() => handleVerifyPendingPayment(pay.id)}
-                                title="Simulate Gateway Webhook / Admin Verification"
                               >
-                                Verify Now (Admin/Webhook)
+                                Verify Payment
                               </button>
                             )}
                           </div>
@@ -721,63 +720,46 @@ export default function PaySmallSmallPage() {
                     </a>
                   </div>
 
-                  {/* Administrator Configurable Rules Panel */}
-                  <div className="admin-config-preview-card">
-                    <span className="eyebrow left-align">Administrator Governance</span>
-                    <h4>Configurable Instalment Rules</h4>
-                    <p style={{ fontSize: '0.8rem', color: '#b8b3aa', marginBottom: '1rem' }}>
-                      {user?.role === 'ADMIN'
-                        ? 'You are signed in as Administrator. Adjust global deposit percentages and durations below:'
-                        : 'Deposit percentages and durations are controlled by CAF Interiors Administration (Sign in as admin@cafinteriors.ng to edit live):'}
-                    </p>
-
-                    <form onSubmit={handleAdminConfigSave}>
-                      <div className="form-group">
-                        <label className="form-label">Minimum Qualifying Price (₦)</label>
-                        <input
-                          type="number"
-                          className="form-input"
-                          value={adminMinPrice}
-                          onChange={(e) => setAdminMinPrice(Number(e.target.value))}
-                          disabled={user?.role !== 'ADMIN'}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">Default Deposit Percentage (%)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          className="form-input"
-                          value={adminDefaultDeposit}
-                          onChange={(e) => setAdminDefaultDeposit(Number(e.target.value))}
-                          disabled={user?.role !== 'ADMIN'}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">Approved Durations (Months)</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          value={adminDurationsText}
-                          onChange={(e) => setAdminDurationsText(e.target.value)}
-                          disabled={user?.role !== 'ADMIN'}
-                        />
-                      </div>
-                      {user?.role === 'ADMIN' ? (
+                  {/* Instalment Policy Summary Panel */}
+                  {user?.role === 'ADMIN' && (
+                    <div className="admin-config-preview-card">
+                      <span className="eyebrow left-align">Administrator Governance</span>
+                      <h4>Configurable Instalment Rules</h4>
+                      <form onSubmit={handleAdminConfigSave}>
+                        <div className="form-group">
+                          <label className="form-label">Minimum Qualifying Price (₦)</label>
+                          <input
+                            type="number"
+                            className="form-input"
+                            value={adminMinPrice}
+                            onChange={(e) => setAdminMinPrice(Number(e.target.value))}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Default Deposit Percentage (%)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            className="form-input"
+                            value={adminDefaultDeposit}
+                            onChange={(e) => setAdminDefaultDeposit(Number(e.target.value))}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Approved Durations (Months)</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={adminDurationsText}
+                            onChange={(e) => setAdminDurationsText(e.target.value)}
+                          />
+                        </div>
                         <button type="submit" className="btn-gold" style={{ width: '100%' }}>
                           Save Global Pay Small Small Rules
                         </button>
-                      ) : (
-                        <Link
-                          href="/account/login?redirect=/pay-small-small"
-                          className="btn-text-gold"
-                          style={{ display: 'inline-block', textAlign: 'center', width: '100%' }}
-                        >
-                          Sign In as Admin to Modify Rules
-                        </Link>
-                      )}
-                    </form>
-                  </div>
+                      </form>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

@@ -54,8 +54,8 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({
-    enquiries: db.customEnquiries,
-    quotations: db.quotations,
+    enquiries: [],
+    quotations: [],
   });
 }
 

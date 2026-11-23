@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PRODUCTS_CATALOG } from '@/lib/catalog-data';
-import { readDb, saveDb } from '@/lib/db-store';
+import { readDb, saveDb, parseSessionToken } from '@/lib/db-store';
 
 export async function GET(
   _request: NextRequest,
@@ -31,6 +31,15 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    const token = request.cookies.get('caf_session')?.value;
+    const session = parseSessionToken(token);
+    if (!session || session.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'Access denied. Administrator authorisation required.' },
+        { status: session ? 403 : 401 }
+      );
+    }
+
     const updates = await request.json();
     const db = readDb();
     if (!db.products) db.products = [...PRODUCTS_CATALOG];
@@ -79,9 +88,18 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const token = request.cookies.get('caf_session')?.value;
+  const session = parseSessionToken(token);
+  if (!session || session.role !== 'ADMIN') {
+    return NextResponse.json(
+      { error: 'Access denied. Administrator authorisation required.' },
+      { status: session ? 403 : 401 }
+    );
+  }
+
   const db = readDb();
   if (!db.products) db.products = [...PRODUCTS_CATALOG];
 

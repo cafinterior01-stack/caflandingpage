@@ -574,7 +574,7 @@ export default function InteriorDesignPage() {
                                 Phase 0{ms.stepNumber} • {ms.status.replace(/_/g, ' ')} (
                                 {ms.completionPercent}%)
                               </span>
-                              {ms.status !== 'COMPLETED' && (
+                              {user?.role === 'ADMIN' && ms.status !== 'COMPLETED' && (
                                 <button
                                   type="button"
                                   className="btn-text-gold"
@@ -585,9 +585,7 @@ export default function InteriorDesignPage() {
                                     )
                                   }
                                 >
-                                  {ms.status === 'UPCOMING'
-                                    ? 'Start Phase (Admin)'
-                                    : 'Mark Completed (Admin)'}
+                                  {ms.status === 'UPCOMING' ? 'Start Phase' : 'Mark Completed'}
                                 </button>
                               )}
                             </div>

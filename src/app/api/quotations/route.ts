@@ -1,15 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readDb, saveDb, parseSessionToken, QuotationRecord, QuotationItemRecord } from '@/lib/db-store';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const token = request.cookies.get('caf_session')?.value;
+  const session = parseSessionToken(token);
   const db = readDb();
-  return NextResponse.json({ quotations: db.quotations });
+
+  if (session?.role === 'ADMIN') {
+    return NextResponse.json({ quotations: db.quotations });
+  }
+
+  if (session) {
+    const myQuotations = db.quotations.filter(
+      (q) => q.customerEmail.toLowerCase() === session.email.toLowerCase()
+    );
+    return NextResponse.json({ quotations: myQuotations });
+  }
+
+  return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
 }
 
 export async function POST(request: NextRequest) {
   try {
     const token = request.cookies.get('caf_session')?.value;
     const session = parseSessionToken(token);
+    if (!session || session.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'Only CAF Interiors Administrators can issue official quotations.' },
+        { status: session ? 403 : 401 }
+      );
+    }
+
     const body = await request.json();
 
     const {
@@ -21,15 +42,7 @@ export async function POST(request: NextRequest) {
       estimatedLeadTime = '14 – 21 Business Days',
       adminNotes = 'Prepared by CAF Interiors Bespoke Manufacturing Desk.',
       validUntil = '2026-12-31',
-      adminOverride = false,
     } = body;
-
-    if (session?.role !== 'ADMIN' && !adminOverride) {
-      return NextResponse.json(
-        { error: 'Only CAF Interiors Administrators can issue official quotations.' },
-        { status: 403 }
-      );
-    }
 
     const db = readDb();
     const enqIdx = db.customEnquiries.findIndex(

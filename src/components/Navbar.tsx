@@ -145,10 +145,6 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
           >
             WhatsApp: +234 903 026 2160
           </a>
-          <span className="announcement-divider">|</span>
-          <Link href="/admin" className="announcement-link">
-            Admin Portal
-          </Link>
         </div>
       </div>
 
@@ -472,10 +468,6 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
             >
               <span>{user ? `My Account (${user.name.split(' ')[0]})` : 'My Account / Sign In'}</span>
               <span className="index">09</span>
-            </Link>
-            <Link href="/admin" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>
-              <span className="gold-text">Admin Command Center</span>
-              <span className="index">10</span>
             </Link>
           </nav>
         </div>

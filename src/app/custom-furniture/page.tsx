@@ -668,59 +668,24 @@ export default function CustomFurniturePage() {
                       ) : (
                         <div className="official-quotation-box">
                           <h4 style={{ color: '#e6c762', marginBottom: '0.5rem' }}>
-                            Awaiting CAF Interiors Administrator Quotation
+                            Under Review by CAF Interiors Bespoke Desk
                           </h4>
-                          <p style={{ fontSize: '0.82rem', color: '#b8b3aa', marginBottom: '1rem' }}>
-                            Your request is in the CAF Interiors Administrator queue. Below, you can
-                            test issuing an official administrator quotation to this request:
+                          <p style={{ fontSize: '0.84rem', color: '#b8b3aa', marginBottom: '1rem' }}>
+                            Your custom furniture specification has been received and queued for
+                            costing by our master craftsmen. Once your official quotation is issued,
+                            it will appear here and in your client account dashboard for acceptance.
                           </p>
-                          <form onSubmit={handleIssueQuotation}>
-                            <div className="form-group">
-                              <label className="form-label">Quotation Line Item Description</label>
-                              <input
-                                type="text"
-                                className="form-input"
-                                value={adminQuoteDesc}
-                                onChange={(e) => setAdminQuoteDesc(e.target.value)}
-                                required
-                              />
-                            </div>
-                            <div className="form-row-2">
-                              <div className="form-group">
-                                <label className="form-label">Item Price (₦)</label>
-                                <input
-                                  type="number"
-                                  className="form-input"
-                                  value={adminQuotePrice}
-                                  onChange={(e) => setAdminQuotePrice(Number(e.target.value))}
-                                  required
-                                />
-                              </div>
-                              <div className="form-group">
-                                <label className="form-label">Delivery &amp; Install Fee (₦)</label>
-                                <input
-                                  type="number"
-                                  className="form-input"
-                                  value={adminQuoteDelivery}
-                                  onChange={(e) => setAdminQuoteDelivery(Number(e.target.value))}
-                                  required
-                                />
-                              </div>
-                            </div>
-                            <div className="form-group">
-                              <label className="form-label">Estimated Production Lead Time</label>
-                              <input
-                                type="text"
-                                className="form-input"
-                                value={adminQuoteLeadTime}
-                                onChange={(e) => setAdminQuoteLeadTime(e.target.value)}
-                                required
-                              />
-                            </div>
-                            <button type="submit" className="btn-gold" style={{ width: '100%' }}>
-                              Send Official Quotation to Customer (Admin Action)
-                            </button>
-                          </form>
+                          <a
+                            href={getWhatsAppUrl(
+                              `Hello CAF Interiors, I am following up on my Custom Furniture Request ${trackedEnquiry.enquiryNumber}.`
+                            )}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn-outline-gold"
+                            style={{ display: 'block', textAlign: 'center' }}
+                          >
+                            Inquire with Bespoke Desk on WhatsApp
+                          </a>
                         </div>
                       )}
                     </div>

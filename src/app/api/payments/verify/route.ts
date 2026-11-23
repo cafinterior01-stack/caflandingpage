@@ -42,10 +42,35 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  const token = request.cookies.get('caf_session')?.value;
+  const session = parseSessionToken(token);
+
+  if (session?.role === 'ADMIN') {
+    return NextResponse.json({
+      config: db.paySmallSmallConfig,
+      payments: db.instalmentPayments,
+      notifications: db.notifications,
+    });
+  }
+
+  if (session) {
+    const userOrders = db.orders.filter(
+      (o) =>
+        o.userId === session.id ||
+        o.customerEmail.toLowerCase() === session.email.toLowerCase()
+    );
+    const userOrderIds = new Set(userOrders.map((o) => o.id));
+    return NextResponse.json({
+      config: db.paySmallSmallConfig,
+      payments: db.instalmentPayments.filter((p) => userOrderIds.has(p.orderId)),
+      notifications: db.notifications.filter((n) => userOrderIds.has(n.orderId)),
+    });
+  }
+
   return NextResponse.json({
     config: db.paySmallSmallConfig,
-    payments: db.instalmentPayments,
-    notifications: db.notifications,
+    payments: [],
+    notifications: [],
   });
 }
 
@@ -135,14 +160,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Administrator (or verified payment gateway callback) verifies an instalment payment
+    // 2. Administrator verifies an instalment payment
     if (action === 'VERIFY_PAYMENT') {
-      const { paymentId, verifySecret } = body;
-      const isAdmin = session?.role === 'ADMIN' || verifySecret === 'CAF_ADMIN_VERIFY';
-      if (!isAdmin) {
+      const { paymentId } = body;
+      if (session?.role !== 'ADMIN') {
         return NextResponse.json(
-          { error: 'Only CAF Interiors Administrators or verified gateway webhooks can verify payments.' },
-          { status: 403 }
+          { error: 'Access denied. Only authorised CAF Interiors Administrators can verify payments.' },
+          { status: session ? 403 : 401 }
         );
       }
 

@@ -1,8 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readDb, saveDb } from '@/lib/db-store';
+import { readDb, saveDb, parseSessionToken } from '@/lib/db-store';
 import { PRODUCTS_CATALOG, FURNITURE_CATEGORIES, CUSTOMER_TESTIMONIALS } from '@/lib/catalog-data';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const token = request.cookies.get('caf_session')?.value;
+  const session = parseSessionToken(token);
+  if (!session) {
+    return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
+  }
+  if (session.role !== 'ADMIN') {
+    return NextResponse.json(
+      { error: 'Access denied. Administrator authorisation required.' },
+      { status: 403 }
+    );
+  }
+
   const db = readDb();
   const products = db.products || PRODUCTS_CATALOG;
   const categories = db.categories || FURNITURE_CATEGORIES;
@@ -49,6 +61,18 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const token = request.cookies.get('caf_session')?.value;
+    const session = parseSessionToken(token);
+    if (!session) {
+      return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
+    }
+    if (session.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'Access denied. Administrator authorisation required.' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { action } = body;
     const db = readDb();
