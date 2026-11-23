@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import BrandLogo from '@/components/BrandLogo';
 import { useMarketplace } from '@/context/MarketplaceContext';
 
 function LoginContent() {
@@ -56,6 +57,9 @@ function LoginContent() {
   return (
     <div className="auth-card-container">
       <div className="auth-luxury-card">
+        <div className="auth-logo-header">
+          <BrandLogo variant="auth" />
+        </div>
         <span className="eyebrow">CAF Interior and Exterior Service</span>
         <h1 className="auth-title">Client &amp; Executive Sign In</h1>
         <p className="auth-sub">

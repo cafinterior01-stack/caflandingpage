@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import BrandLogo from '@/components/BrandLogo';
 import { useMarketplace } from '@/context/MarketplaceContext';
 
 export default function RegisterPage() {
@@ -52,6 +53,9 @@ export default function RegisterPage() {
       <main className="auth-page-main">
         <div className="auth-card-container">
           <div className="auth-luxury-card" style={{ maxWidth: '620px' }}>
+            <div className="auth-logo-header">
+              <BrandLogo variant="auth" />
+            </div>
             <span className="eyebrow">CAF Interior and Exterior Service</span>
             <h1 className="auth-title">Create Your Client Account</h1>
             <p className="auth-sub">

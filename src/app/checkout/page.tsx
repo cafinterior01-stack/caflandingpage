@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import BrandLogo from '@/components/BrandLogo';
 import { useMarketplace } from '@/context/MarketplaceContext';
 import { formatNaira } from '@/lib/format';
 
@@ -150,10 +151,17 @@ function CheckoutFormContent() {
 
   return (
     <div className="container">
-      <div className="eyebrow left-align">Secure Luxury Checkout</div>
-      <h1 className="section-heading" style={{ marginBottom: '2rem' }}>
-        Complete Your <span className="gold-accent">CAF Interiors Order</span>
-      </h1>
+      <div className="checkout-brand-banner">
+        <BrandLogo variant="checkout" />
+        <div>
+          <div className="eyebrow left-align" style={{ marginBottom: '0.35rem' }}>
+            Secure Luxury Checkout
+          </div>
+          <h1 className="section-heading" style={{ marginBottom: 0 }}>
+            Complete Your <span className="gold-accent">CAF Interiors Order</span>
+          </h1>
+        </div>
+      </div>
 
       {!user && (
         <div className="checkout-login-prompt">

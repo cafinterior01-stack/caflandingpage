@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import BrandLogo from '@/components/BrandLogo';
 import { useMarketplace } from '@/context/MarketplaceContext';
 
 export default function AdminLoginPage() {
@@ -47,6 +48,9 @@ export default function AdminLoginPage() {
       <main className="auth-page-main">
         <div className="auth-card-container">
           <div className="auth-luxury-card">
+            <div className="auth-logo-header">
+              <BrandLogo variant="auth" />
+            </div>
             <span className="eyebrow">Executive Governance</span>
             <h1 className="auth-title">CAF Interiors Admin Sign In</h1>
             <p className="auth-sub">

@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import BrandLogo from '@/components/BrandLogo';
 import { OrderRecord } from '@/lib/db-store';
 import { formatNaira, getWhatsAppUrl } from '@/lib/format';
 import { useMarketplace } from '@/context/MarketplaceContext';
@@ -66,8 +67,9 @@ function OrderSuccessContent() {
 
   if (loading) {
     return (
-      <div className="container" style={{ padding: '6rem 2rem', textAlign: 'center' }}>
-        Loading your official CAF Interiors order receipt...
+      <div className="container loading-skeleton-screen">
+        <BrandLogo variant="loading" href={null} />
+        <p>Loading your official CAF Interiors order receipt...</p>
       </div>
     );
   }
@@ -87,13 +89,18 @@ function OrderSuccessContent() {
     <div className="container">
       <div className="receipt-card">
         <div className="receipt-header">
-          <div>
-            <span className="eyebrow left-align">Official Order Confirmation &amp; Pro-Forma Receipt</span>
-            <h1 className="receipt-title">Thank You, {order.customerName}</h1>
-            <p className="receipt-sub">
-              Your order <strong>{order.orderNumber}</strong> has been registered with{' '}
-              <strong>CAF Interior and Exterior Service</strong>.
-            </p>
+          <div className="dashboard-brand-title-group">
+            <BrandLogo variant="receipt" />
+            <div>
+              <span className="eyebrow left-align">
+                Official Order Confirmation &amp; Pro-Forma Receipt
+              </span>
+              <h1 className="receipt-title">Thank You, {order.customerName}</h1>
+              <p className="receipt-sub">
+                Your order <strong>{order.orderNumber}</strong> has been registered with{' '}
+                <strong>CAF Interior and Exterior Service</strong>.
+              </p>
+            </div>
           </div>
           <div className="receipt-badges">
             <span className="badge-pss">Order #{order.orderNumber}</span>

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
+import BrandLogo from '@/components/BrandLogo';
 import { useMarketplace } from '@/context/MarketplaceContext';
 import { FURNITURE_CATEGORIES, PRODUCTS_CATALOG } from '@/lib/catalog-data';
 import { formatNaira, getWhatsAppUrl } from '@/lib/format';
@@ -154,16 +155,8 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
       {/* Main Sticky Header */}
       <header className={`site-header ${scrolled ? 'scrolled' : ''}`}>
         <div className="header-inner">
-          {/* Brand Logo */}
-          <Link href="/" className="brand-logo" aria-label="CAF Interiors Home">
-            <div className="brand-monogram" aria-hidden="true">
-              CAF
-            </div>
-            <div className="brand-text">
-              <span className="brand-name">CAF INTERIORS</span>
-              <span className="brand-tagline">Your Comfortability Is Our Priority.</span>
-            </div>
-          </Link>
+          {/* Official CAF Interiors Brand Logo */}
+          <BrandLogo variant="header" priority />
 
           {/* Main 9-Item Desktop Navigation */}
           <nav className="desktop-nav" aria-label="Primary Marketplace Navigation">
@@ -396,15 +389,7 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
       />
       <aside className={`mobile-drawer ${mobileMenuOpen ? 'open' : ''}`} aria-label="Mobile Navigation">
         <div className="mobile-drawer-top-bar">
-          <div className="brand-logo">
-            <div className="brand-monogram" aria-hidden="true">
-              CAF
-            </div>
-            <div className="brand-text">
-              <span className="brand-name">CAF INTERIORS</span>
-              <span className="brand-tagline">Luxury Marketplace</span>
-            </div>
-          </div>
+          <BrandLogo variant="mobile-drawer" onClick={() => setMobileMenuOpen(false)} />
           <button
             type="button"
             className="drawer-close-btn"

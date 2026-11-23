@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import BrandLogo from '@/components/BrandLogo';
 import { FURNITURE_CATEGORIES } from '@/lib/catalog-data';
 import { getWhatsAppUrl } from '@/lib/format';
 
@@ -42,15 +43,7 @@ export default function Footer() {
         <div className="footer-top-4col">
           {/* Column 1: Brand Identity */}
           <div>
-            <Link href="/" className="brand-logo">
-              <div className="brand-monogram" aria-hidden="true">
-                CAF
-              </div>
-              <div className="brand-text">
-                <span className="brand-name">CAF INTERIORS</span>
-                <span className="brand-tagline">CAF Interior and Exterior Service</span>
-              </div>
-            </Link>
+            <BrandLogo variant="footer" />
             <p className="footer-brand-slogan">&ldquo;Your Comfortability Is Our Priority.&rdquo;</p>
             <p className="footer-secondary-slogan">Luxury Begins Beneath.</p>
             <p className="footer-brand-desc">

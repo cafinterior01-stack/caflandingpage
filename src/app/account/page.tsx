@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import BrandLogo from '@/components/BrandLogo';
 import { useMarketplace } from '@/context/MarketplaceContext';
 import {
   OrderRecord,
@@ -159,8 +160,9 @@ export default function CustomerAccountPage() {
     return (
       <>
         <Navbar />
-        <main style={{ padding: '8rem 2rem', textAlign: 'center', minHeight: '70vh' }}>
-          Loading your CAF Interiors account...
+        <main className="loading-skeleton-screen" style={{ minHeight: '70vh' }}>
+          <BrandLogo variant="loading" href={null} />
+          <p>Loading your CAF Interiors account...</p>
         </main>
         <Footer />
       </>
@@ -173,7 +175,10 @@ export default function CustomerAccountPage() {
         <Navbar />
         <main className="auth-page-main">
           <div className="container" style={{ maxWidth: '680px', textAlign: 'center' }}>
-            <div className="auth-luxury-card">
+            <div className="auth-luxury-card" style={{ margin: '0 auto' }}>
+              <div className="auth-logo-header" style={{ justifyContent: 'center' }}>
+                <BrandLogo variant="auth" />
+              </div>
               <span className="eyebrow">My Account Portal</span>
               <h1 className="auth-title">Welcome to Your CAF Interiors Concierge</h1>
               <p className="auth-sub">
@@ -208,14 +213,17 @@ export default function CustomerAccountPage() {
         <div className="container">
           {/* Top Greeting & KPI Strip */}
           <div className="account-header-card">
-            <div>
-              <span className="eyebrow left-align">
-                {user.role === 'ADMIN' ? 'CAF Interiors Executive Account' : 'Verified Luxury Client Account'}
-              </span>
-              <h1>Welcome, {user.name}</h1>
-              <p>
-                {user.email} • {user.phone} • {user.city || 'Lekki'}, {user.state || 'Lagos'}
-              </p>
+            <div className="dashboard-brand-title-group">
+              <BrandLogo variant="dashboard" />
+              <div>
+                <span className="eyebrow left-align">
+                  {user.role === 'ADMIN' ? 'CAF Interiors Executive Account' : 'Verified Luxury Client Account'}
+                </span>
+                <h1>Welcome, {user.name}</h1>
+                <p>
+                  {user.email} • {user.phone} • {user.city || 'Lekki'}, {user.state || 'Lagos'}
+                </p>
+              </div>
             </div>
             <div className="account-header-actions">
               <Link href="/custom-furniture" className="btn-gold">

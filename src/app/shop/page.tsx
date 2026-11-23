@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
+import BrandLogo from '@/components/BrandLogo';
 import { FURNITURE_CATEGORIES, PRODUCTS_CATALOG } from '@/lib/catalog-data';
 import { useMarketplace } from '@/context/MarketplaceContext';
 
@@ -314,7 +315,7 @@ export default function ShopPage() {
       <Suspense
         fallback={
           <div className="loading-skeleton-screen">
-            <span className="orbital-core" />
+            <BrandLogo variant="loading" href={null} />
             <p>Loading CAF Interiors Luxury Marketplace...</p>
           </div>
         }

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import BrandLogo from '@/components/BrandLogo';
 import { useMarketplace } from '@/context/MarketplaceContext';
 import { formatNaira, getWhatsAppUrl } from '@/lib/format';
 import { Product, Category, Testimonial } from '@/types';
@@ -403,15 +404,18 @@ export default function AdminDashboardPage() {
         <div className="container">
           {/* Executive Header */}
           <div className="account-header-card">
-            <div>
-              <span className="eyebrow left-align">
-                CAF Interior and Exterior Service • Executive Command Center
-              </span>
-              <h1>Administrator Dashboard</h1>
-              <p>
-                Manage products, 14 categories, orders, Pay Small Small approvals, payment
-                verification, custom quotations, and interior design project milestones.
-              </p>
+            <div className="dashboard-brand-title-group">
+              <BrandLogo variant="dashboard" />
+              <div>
+                <span className="eyebrow left-align">
+                  CAF Interior and Exterior Service • Executive Command Center
+                </span>
+                <h1>Administrator Dashboard</h1>
+                <p>
+                  Manage products, 15 categories, orders, Pay Small Small approvals, payment
+                  verification, custom quotations, and interior design project milestones.
+                </p>
+              </div>
             </div>
             <div className="account-header-actions">
               {user?.role !== 'ADMIN' && (
