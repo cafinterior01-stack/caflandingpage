@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Cormorant_Garamond, Plus_Jakarta_Sans } from 'next/font/google';
+import { MarketplaceProvider } from '@/context/MarketplaceContext';
 import './globals.css';
 
 const cormorant = Cormorant_Garamond({
@@ -46,7 +47,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${cormorant.variable} ${jakarta.variable}`}>
-      <body>{children}</body>
+      <body>
+        <MarketplaceProvider>{children}</MarketplaceProvider>
+      </body>
     </html>
   );
 }
