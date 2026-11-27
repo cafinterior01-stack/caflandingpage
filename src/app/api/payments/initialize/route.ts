@@ -16,7 +16,13 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { orderNumber, provider: rawProvider, amountOverride, instalmentNumber = 0 } = body;
+    const {
+      orderNumber,
+      provider: rawProvider,
+      amountOverride,
+      instalmentNumber = 0,
+      orderSnapshot,
+    } = body;
 
     if (!orderNumber) {
       return NextResponse.json(
@@ -26,11 +32,17 @@ export async function POST(request: NextRequest) {
     }
 
     const db = readDb();
-    const ordIdx = db.orders.findIndex(
+    let ordIdx = db.orders.findIndex(
       (o) =>
         o.orderNumber.toLowerCase() === String(orderNumber).trim().toLowerCase() ||
         o.id === orderNumber
     );
+
+    // If a serverless cold-start instance hasn't seen the just-created order yet, hydrate it from orderSnapshot
+    if (ordIdx === -1 && orderSnapshot && orderSnapshot.orderNumber) {
+      db.orders.unshift(orderSnapshot);
+      ordIdx = 0;
+    }
 
     if (ordIdx === -1) {
       return NextResponse.json({ error: 'Order not found.' }, { status: 404 });
@@ -64,9 +76,9 @@ export async function POST(request: NextRequest) {
       order.paymentReference && order.amountPaidVerified === 0 && Number(instalmentNumber) === 0
         ? order.paymentReference
         : `CAF-${provider.slice(0, 4)}-${Date.now().toString().slice(-6)}-${Math.random()
-            .toString(36)
-            .slice(2, 5)
-            .toUpperCase()}`;
+          .toString(36)
+          .slice(2, 5)
+          .toUpperCase()}`;
 
     // Update or create pending payment record so retries do not create duplicate pending records
     const existingPendingIdx = db.instalmentPayments.findIndex(

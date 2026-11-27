@@ -230,6 +230,7 @@ export async function POST(request: NextRequest) {
         amount,
         currency = 'NGN',
         gatewayStatus = 'SUCCESS',
+        orderSnapshot,
       } = body;
 
       if (!orderNumber && !reference) {
@@ -239,11 +240,17 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const ordIdx = db.orders.findIndex(
+      let ordIdx = db.orders.findIndex(
         (o) =>
           (orderNumber && o.orderNumber.toLowerCase() === String(orderNumber).toLowerCase()) ||
           (reference && o.paymentReference.toLowerCase() === String(reference).toLowerCase())
       );
+
+      // Hydrate order if a serverless cold-start instance received the callback before seeing the order creation instance
+      if (ordIdx === -1 && orderSnapshot && orderSnapshot.orderNumber) {
+        db.orders.unshift(orderSnapshot);
+        ordIdx = 0;
+      }
 
       if (ordIdx === -1) {
         return NextResponse.json({ error: 'Order not found for verification.' }, { status: 404 });

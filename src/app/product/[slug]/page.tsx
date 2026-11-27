@@ -15,52 +15,87 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
     catalogLoading,
     addToCart,
     setCartOpen,
+    wishlistIds,
+    toggleWishlist,
     compareIds,
     toggleCompare,
     openCustomModal,
   } = useMarketplace();
 
+  const decodedSlug = decodeURIComponent(params.slug || '').trim();
+
   const contextProduct = catalogProducts.find(
-    (p) => p.slug === params.slug || p.id === params.slug
+    (p) =>
+      p.slug === decodedSlug ||
+      p.id === decodedSlug ||
+      p.slug.toLowerCase() === decodedSlug.toLowerCase()
   );
 
   const [fetchedProduct, setFetchedProduct] = useState<Product | null>(null);
+  const [localCustomProduct, setLocalCustomProduct] = useState<Product | null>(null);
   const [fetching, setFetching] = useState<boolean>(true);
-  const [notFound, setNotFound] = useState<boolean>(false);
+  const [apiFailed, setApiFailed] = useState<boolean>(false);
 
-  const product = fetchedProduct || contextProduct || null;
+  // Immediately inspect localStorage for newly uploaded custom products so serverless cold-starts never show "Product Not Found"
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('caf_admin_custom_products');
+      if (raw) {
+        const list: Product[] = JSON.parse(raw);
+        if (Array.isArray(list)) {
+          const found = list.find(
+            (p) =>
+              p &&
+              (p.slug === decodedSlug ||
+                p.id === decodedSlug ||
+                p.slug?.toLowerCase() === decodedSlug.toLowerCase())
+          );
+          if (found) {
+            setLocalCustomProduct(found);
+          }
+        }
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, [decodedSlug]);
 
-  const [activeImage, setActiveImage] = useState<string>('');
+  const product = fetchedProduct || contextProduct || localCustomProduct || null;
+
+  const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
   const [imgError, setImgError] = useState<boolean>(false);
+  const [lightboxOpen, setLightboxOpen] = useState<boolean>(false);
   const [selectedSizeIndex, setSelectedSizeIndex] = useState<number>(0);
   const [selectedColorIndex, setSelectedColorIndex] = useState<number>(0);
   const [quantity, setQuantity] = useState<number>(1);
   const [paymentMode, setPaymentMode] = useState<'FULL_PAYMENT' | 'PAY_SMALL_SMALL'>('FULL_PAYMENT');
   const [instalmentMonths, setInstalmentMonths] = useState<number>(3);
 
+  const activeImage = product?.images?.[activeImageIndex] || product?.images?.[0] || '';
+
   useEffect(() => {
     let active = true;
     setFetching(true);
-    setNotFound(false);
-    fetch(`/api/products/${encodeURIComponent(params.slug)}`, { cache: 'no-store' })
+    setApiFailed(false);
+    fetch(`/api/products/${encodeURIComponent(decodedSlug)}`, { cache: 'no-store' })
       .then(async (res) => {
         if (!active) return;
         if (res.ok) {
           const data = await res.json();
           if (data.product) {
             setFetchedProduct(data.product);
-            setNotFound(false);
+            setApiFailed(false);
           } else {
-            setNotFound(true);
+            setApiFailed(true);
           }
         } else {
           setFetchedProduct(null);
-          setNotFound(true);
+          setApiFailed(true);
         }
       })
       .catch(() => {
-        if (active && !contextProduct) {
-          setNotFound(true);
+        if (active) {
+          setApiFailed(true);
         }
       })
       .finally(() => {
@@ -69,18 +104,18 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
     return () => {
       active = false;
     };
-  }, [params.slug, contextProduct]);
+  }, [decodedSlug]);
 
   useEffect(() => {
     if (product) {
-      setActiveImage(product.images?.[0] || '');
+      setActiveImageIndex(0);
       setImgError(false);
       setSelectedSizeIndex(0);
       setSelectedColorIndex(0);
       setPaymentMode(product.paySmallSmall.eligible ? 'PAY_SMALL_SMALL' : 'FULL_PAYMENT');
       setInstalmentMonths(product.paySmallSmall.allowedDurationsMonths?.[0] || 3);
     }
-  }, [product?.id, product?.images]);
+  }, [product?.id]);
 
   if ((fetching || catalogLoading) && !product) {
     return (
@@ -97,7 +132,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
     );
   }
 
-  if (notFound || !product) {
+  if (!product && apiFailed && !fetching && !catalogLoading) {
     return (
       <>
         <Navbar />
@@ -117,6 +152,12 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
       </>
     );
   }
+
+  if (!product) {
+    return null;
+  }
+
+  const isWishlisted = wishlistIds.includes(product.id);
 
   const selectedSizeObj = product.sizes[selectedSizeIndex] || product.sizes[0];
   const selectedColorObj = product.colors[selectedColorIndex] || product.colors[0];
@@ -177,11 +218,89 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
             <div className="pdp-gallery">
               <div className="pdp-primary-image-box">
                 {activeImage && !imgError ? (
-                  <img
-                    src={activeImage}
-                    alt={product.name}
-                    onError={() => setImgError(true)}
-                  />
+                  <>
+                    <img
+                      src={activeImage}
+                      alt={product.name}
+                      onError={() => setImgError(true)}
+                      onClick={() => setLightboxOpen(true)}
+                      style={{ cursor: 'zoom-in' }}
+                    />
+                    {product.images.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          aria-label="Previous product photograph"
+                          onClick={() => {
+                            setActiveImageIndex((prev) =>
+                              prev === 0 ? product.images.length - 1 : prev - 1
+                            );
+                            setImgError(false);
+                          }}
+                          style={{
+                            position: 'absolute',
+                            left: '0.85rem',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            width: '38px',
+                            height: '38px',
+                            background: 'rgba(8,8,8,0.82)',
+                            border: '1px solid rgba(212,175,55,0.55)',
+                            color: '#e6c762',
+                            cursor: 'pointer',
+                            zIndex: 3,
+                          }}
+                        >
+                          &larr;
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Next product photograph"
+                          onClick={() => {
+                            setActiveImageIndex((prev) =>
+                              prev === product.images.length - 1 ? 0 : prev + 1
+                            );
+                            setImgError(false);
+                          }}
+                          style={{
+                            position: 'absolute',
+                            right: '0.85rem',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            width: '38px',
+                            height: '38px',
+                            background: 'rgba(8,8,8,0.82)',
+                            border: '1px solid rgba(212,175,55,0.55)',
+                            color: '#e6c762',
+                            cursor: 'pointer',
+                            zIndex: 3,
+                          }}
+                        >
+                          &rarr;
+                        </button>
+                      </>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setLightboxOpen(true)}
+                      style={{
+                        position: 'absolute',
+                        bottom: '0.85rem',
+                        right: '0.85rem',
+                        background: 'rgba(8,8,8,0.85)',
+                        border: '1px solid rgba(212,175,55,0.5)',
+                        color: '#f8f6f2',
+                        fontSize: '0.7rem',
+                        padding: '0.35rem 0.7rem',
+                        letterSpacing: '0.1em',
+                        textTransform: 'uppercase',
+                        cursor: 'pointer',
+                        zIndex: 3,
+                      }}
+                    >
+                      ⤢ Inspect Full Photo ({activeImageIndex + 1}/{product.images.length})
+                    </button>
+                  </>
                 ) : (
                   <div
                     style={{
@@ -216,9 +335,9 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                     <button
                       key={`${imgUrl}-${idx}`}
                       type="button"
-                      className={`pdp-thumb-btn ${activeImage === imgUrl ? 'active' : ''}`}
+                      className={`pdp-thumb-btn ${activeImageIndex === idx ? 'active' : ''}`}
                       onClick={() => {
-                        setActiveImage(imgUrl);
+                        setActiveImageIndex(idx);
                         setImgError(false);
                       }}
                     >
@@ -446,8 +565,16 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                 </button>
               </div>
 
-              {/* 5. Secondary Customisation, Compare & WhatsApp Concierge Buttons */}
+              {/* 5. Secondary Customisation, Wishlist, Compare & WhatsApp Concierge Buttons */}
               <div className="pdp-secondary-actions">
+                <button
+                  type="button"
+                  className={`pdp-sec-btn ${isWishlisted ? 'active' : ''}`}
+                  onClick={() => toggleWishlist(product.id)}
+                >
+                  {isWishlisted ? '♥ Saved in Wishlist' : '♡ Save to Wishlist'}
+                </button>
+
                 <button
                   type="button"
                   className="pdp-sec-btn"
@@ -479,6 +606,76 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
               </div>
             </div>
           </div>
+
+          {/* Fullscreen Image Lightbox Modal */}
+          {lightboxOpen && activeImage && (
+            <div
+              className="luxury-modal-Overlay"
+              onClick={() => setLightboxOpen(false)}
+              style={{ zIndex: 1400 }}
+            >
+              <div
+                style={{
+                  position: 'relative',
+                  maxWidth: '1080px',
+                  width: '100%',
+                  maxHeight: '90vh',
+                  background: '#080808',
+                  border: '1px solid #d4af37',
+                  padding: '1.25rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '0.75rem',
+                    color: '#fff',
+                  }}
+                >
+                  <div>
+                    <strong style={{ color: '#e6c762' }}>{product.name}</strong>
+                    <span style={{ marginLeft: '0.75rem', fontSize: '0.78rem', color: '#b8b3aa' }}>
+                      Photograph {activeImageIndex + 1} of {product.images.length}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="drawer-close-btn"
+                    onClick={() => setLightboxOpen(false)}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div
+                  style={{
+                    width: '100%',
+                    height: '72vh',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: '#111111',
+                  }}
+                >
+                  <img
+                    src={activeImage}
+                    alt={product.name}
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: '100%',
+                      objectFit: 'contain',
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Related Products */}
           {relatedProducts.length > 0 && (

@@ -11,8 +11,17 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
-  const { addToCart, setCartOpen, compareIds, toggleCompare, openCustomModal } = useMarketplace();
+  const {
+    addToCart,
+    setCartOpen,
+    wishlistIds,
+    toggleWishlist,
+    compareIds,
+    toggleCompare,
+    openCustomModal,
+  } = useMarketplace();
   const isCompared = compareIds.includes(product.id);
+  const isWishlisted = wishlistIds.includes(product.id);
   const [primaryImgError, setPrimaryImgError] = useState(false);
   const [secondaryImgError, setSecondaryImgError] = useState(false);
 
@@ -107,19 +116,44 @@ export default function ProductCard({ product }: ProductCardProps) {
           )}
         </div>
 
-        {/* Compare Button */}
-        <button
-          type="button"
-          className={`product-compare-btn ${isCompared ? 'active' : ''}`}
-          onClick={() => toggleCompare(product.id)}
-          title={isCompared ? 'Remove from comparison' : 'Compare product'}
-          aria-label={isCompared ? 'Remove from comparison' : 'Compare product'}
-          aria-pressed={isCompared}
+        {/* Wishlist & Compare Buttons */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '0.85rem',
+            right: '0.85rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.4rem',
+            zIndex: 2,
+          }}
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
-          </svg>
-        </button>
+          <button
+            type="button"
+            className={`product-compare-btn ${isWishlisted ? 'active' : ''}`}
+            style={{ position: 'static' }}
+            onClick={() => toggleWishlist(product.id)}
+            title={isWishlisted ? 'Remove from saved wishlist' : 'Save to wishlist'}
+            aria-label={isWishlisted ? 'Remove from saved wishlist' : 'Save to wishlist'}
+            aria-pressed={isWishlisted}
+          >
+            <span style={{ fontSize: '0.95rem', lineHeight: 1 }}>{isWishlisted ? '♥' : '♡'}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`product-compare-btn ${isCompared ? 'active' : ''}`}
+            style={{ position: 'static' }}
+            onClick={() => toggleCompare(product.id)}
+            title={isCompared ? 'Remove from comparison' : 'Compare product'}
+            aria-label={isCompared ? 'Remove from comparison' : 'Compare product'}
+            aria-pressed={isCompared}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div className="product-card-body">

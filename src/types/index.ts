@@ -46,6 +46,7 @@ export interface Product {
   isBestSeller: boolean;
   isNewArrival: boolean;
   isExclusiveOffer: boolean;
+  isPublished?: boolean;
   paySmallSmall: {
     eligible: boolean;
     depositPercentage: number; // e.g., 33.3333 for 500k on 1.5M, or 30, 40

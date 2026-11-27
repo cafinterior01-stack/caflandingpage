@@ -27,12 +27,25 @@ function HostedGatewayCheckoutContent() {
       setLoading(false);
       return;
     }
+    // Check localStorage snapshot first for instant availability across serverless cold-starts
+    try {
+      const rawOrders = localStorage.getItem('caf_client_orders');
+      if (rawOrders) {
+        const list: OrderRecord[] = JSON.parse(rawOrders);
+        const match = Array.isArray(list)
+          ? list.find((o) => o.orderNumber?.toLowerCase() === orderNumber.toLowerCase())
+          : null;
+        if (match) setOrder(match);
+      }
+    } catch {
+      // ignore
+    }
     fetch(`/api/orders/${encodeURIComponent(orderNumber)}`, { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => {
         if (data.order) setOrder(data.order);
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, [orderNumber]);
 
@@ -53,10 +66,23 @@ function HostedGatewayCheckoutContent() {
           amount: payableAmount,
           currency: 'NGN',
           gatewayStatus: 'SUCCESS',
+          orderSnapshot: order || undefined,
         }),
       });
       const data = await res.json();
       if (res.ok) {
+        if (data.order) {
+          try {
+            const rawOrders = localStorage.getItem('caf_client_orders');
+            const list: OrderRecord[] = rawOrders ? JSON.parse(rawOrders) : [];
+            const filtered = Array.isArray(list)
+              ? list.filter((o) => o.orderNumber !== data.order.orderNumber)
+              : [];
+            localStorage.setItem('caf_client_orders', JSON.stringify([data.order, ...filtered]));
+          } catch {
+            // ignore
+          }
+        }
         router.push(
           `/checkout/success?order=${encodeURIComponent(
             orderNumber
@@ -78,7 +104,7 @@ function HostedGatewayCheckoutContent() {
     setProcessingAction(outcome);
     setErrorMsg(null);
     try {
-      await fetch('/api/payments/verify', {
+      const res = await fetch('/api/payments/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -89,8 +115,22 @@ function HostedGatewayCheckoutContent() {
           amount: payableAmount,
           currency: 'NGN',
           gatewayStatus: outcome,
+          orderSnapshot: order || undefined,
         }),
       });
+      const data = await res.json();
+      if (data.order) {
+        try {
+          const rawOrders = localStorage.getItem('caf_client_orders');
+          const list: OrderRecord[] = rawOrders ? JSON.parse(rawOrders) : [];
+          const filtered = Array.isArray(list)
+            ? list.filter((o) => o.orderNumber !== data.order.orderNumber)
+            : [];
+          localStorage.setItem('caf_client_orders', JSON.stringify([data.order, ...filtered]));
+        } catch {
+          // ignore
+        }
+      }
     } catch {
       // ignore
     }

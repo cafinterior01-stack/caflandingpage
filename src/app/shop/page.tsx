@@ -36,6 +36,7 @@ function ShopMarketplaceContent() {
     catalogCategories,
     catalogLoading,
     refreshCatalog,
+    wishlistIds,
     compareIds,
     setCompareOpen,
     openCustomModal,
@@ -45,6 +46,8 @@ function ShopMarketplaceContent() {
   const [searchQuery, setSearchQuery] = useState<string>(initialQuery);
   const [sortBy, setSortBy] = useState<string>('featured');
   const [paySmallSmallOnly, setPaySmallSmallOnly] = useState<boolean>(false);
+  const [inStockOnly, setInStockOnly] = useState<boolean>(false);
+  const [savedOnly, setSavedOnly] = useState<boolean>(false);
   const [priceRange, setPriceRange] = useState<string>('all');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState<boolean>(false);
 
@@ -72,6 +75,12 @@ function ShopMarketplaceContent() {
       return false;
     }
     if (paySmallSmallOnly && !p.paySmallSmall.eligible) {
+      return false;
+    }
+    if (inStockOnly && p.availability !== 'IN_STOCK') {
+      return false;
+    }
+    if (savedOnly && !wishlistIds.includes(p.id)) {
       return false;
     }
     if (priceRange === 'under-1m' && p.price >= 1000000) {
@@ -186,8 +195,28 @@ function ShopMarketplaceContent() {
                   checked={paySmallSmallOnly}
                   onChange={(e) => setPaySmallSmallOnly(e.target.checked)}
                 />
-                <span>Pay Small Small Eligible Only</span>
+                <span>Pay Small Small Eligible</span>
               </label>
+
+              <label className="pss-filter-toggle" style={{ background: 'transparent' }}>
+                <input
+                  type="checkbox"
+                  checked={inStockOnly}
+                  onChange={(e) => setInStockOnly(e.target.checked)}
+                />
+                <span>In Stock Now</span>
+              </label>
+
+              {wishlistIds.length > 0 && (
+                <label className="pss-filter-toggle" style={{ background: 'transparent' }}>
+                  <input
+                    type="checkbox"
+                    checked={savedOnly}
+                    onChange={(e) => setSavedOnly(e.target.checked)}
+                  />
+                  <span>♥ Saved Wishlist ({wishlistIds.length})</span>
+                </label>
+              )}
 
               <select
                 className="shop-select"
@@ -329,6 +358,8 @@ function ShopMarketplaceContent() {
                         setSelectedCategory('all');
                         setSearchQuery('');
                         setPaySmallSmallOnly(false);
+                        setInStockOnly(false);
+                        setSavedOnly(false);
                         setPriceRange('all');
                       }}
                     >

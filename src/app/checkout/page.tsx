@@ -125,7 +125,20 @@ function CheckoutFormContent() {
         return;
       }
 
-      const createdOrderNumber = data.order.orderNumber;
+      const createdOrder = data.order;
+      const createdOrderNumber = createdOrder.orderNumber;
+
+      // Persist order snapshot in localStorage so /checkout/gateway, /checkout/success, and /account never lose the order across serverless cold-starts
+      try {
+        const rawOrders = localStorage.getItem('caf_client_orders');
+        const existingOrders = rawOrders ? JSON.parse(rawOrders) : [];
+        const filtered = Array.isArray(existingOrders)
+          ? existingOrders.filter((o: { orderNumber?: string }) => o.orderNumber !== createdOrderNumber)
+          : [];
+        localStorage.setItem('caf_client_orders', JSON.stringify([createdOrder, ...filtered]));
+      } catch {
+        // ignore storage errors
+      }
 
       // For Paystack and Flutterwave, initialize the server-side payment session and redirect to the hosted checkout page
       if (paymentMethod === 'PAYSTACK' || paymentMethod === 'FLUTTERWAVE') {
@@ -135,6 +148,7 @@ function CheckoutFormContent() {
           body: JSON.stringify({
             orderNumber: createdOrderNumber,
             provider: paymentMethod,
+            orderSnapshot: createdOrder,
           }),
         });
         const initData = await initRes.json();

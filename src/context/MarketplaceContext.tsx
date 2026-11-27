@@ -30,6 +30,8 @@ interface MarketplaceContextType {
   catalogCategories: Category[];
   catalogLoading: boolean;
   refreshCatalog: () => Promise<void>;
+  wishlistIds: string[];
+  toggleWishlist: (productId: string) => void;
   cart: CartItem[];
   cartOpen: boolean;
   setCartOpen: (open: boolean) => void;
@@ -81,6 +83,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
   const [catalogLoading, setCatalogLoading] = useState<boolean>(true);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
+  const [wishlistIds, setWishlistIds] = useState<string[]>([]);
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [compareOpen, setCompareOpen] = useState(false);
   const [customModalTarget, setCustomModalTarget] = useState<CustomisationTarget | null>(null);
@@ -139,7 +142,10 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
           // ignore localStorage read errors
         }
 
-        // Recompute category counts accurately from reconciled products
+        // Only expose published products to the public storefront catalog
+        serverProducts = serverProducts.filter((p) => p.isPublished !== false);
+
+        // Recompute category counts accurately from reconciled published products
         serverCategories = serverCategories.map((cat) => ({
           ...cat,
           productCount: serverProducts.filter(
@@ -199,6 +205,10 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
       if (savedCompare) {
         setCompareIds(JSON.parse(savedCompare));
       }
+      const savedWishlist = localStorage.getItem('caf_luxury_wishlist');
+      if (savedWishlist) {
+        setWishlistIds(JSON.parse(savedWishlist));
+      }
     } catch {
       // ignore storage errors
     }
@@ -224,6 +234,25 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
       // ignore storage errors
     }
   }, [compareIds]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('caf_luxury_wishlist', JSON.stringify(wishlistIds));
+    } catch {
+      // ignore storage errors
+    }
+  }, [wishlistIds]);
+
+  const toggleWishlist = (productId: string) => {
+    setWishlistIds((prev) => {
+      if (prev.includes(productId)) {
+        showToast('Removed piece from your Saved Wishlist.');
+        return prev.filter((id) => id !== productId);
+      }
+      showToast('Saved luxury piece to your Wishlist.');
+      return [...prev, productId];
+    });
+  };
 
   const addToCart: MarketplaceContextType['addToCart'] = (product, options) => {
     const quantity = options?.quantity || 1;
@@ -400,6 +429,8 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         catalogCategories,
         catalogLoading,
         refreshCatalog,
+        wishlistIds,
+        toggleWishlist,
         cart,
         cartOpen,
         setCartOpen,

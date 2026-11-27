@@ -27,10 +27,28 @@ function OrderSuccessContent() {
   const [verifyingGateway, setVerifyingGateway] = useState(false);
 
   const loadOrder = useCallback(() => {
+    let localOrder: OrderRecord | null = null;
+    try {
+      const rawOrders = localStorage.getItem('caf_client_orders');
+      if (rawOrders) {
+        const list: OrderRecord[] = JSON.parse(rawOrders);
+        if (Array.isArray(list)) {
+          localOrder =
+            list.find((o) => o.orderNumber?.toLowerCase() === orderParam.toLowerCase()) || null;
+          if (localOrder) {
+            setOrder(localOrder);
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
     fetch(`/api/orders/${encodeURIComponent(orderParam)}`, { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => {
-        setOrder(data.order || null);
+        if (data.order) {
+          setOrder(data.order);
+        }
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -92,6 +110,7 @@ function OrderSuccessContent() {
         body: JSON.stringify({
           orderNumber: order.orderNumber,
           provider: order.paymentMethod === 'BANK_TRANSFER' ? 'PAYSTACK' : order.paymentMethod,
+          orderSnapshot: order,
         }),
       });
       const data = await res.json();

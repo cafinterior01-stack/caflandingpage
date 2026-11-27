@@ -1,4 +1,5 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import crypto from 'crypto';
 import {
@@ -232,6 +233,7 @@ interface DatabaseSchema {
 }
 
 const DATA_FILE_PATH = path.join(process.cwd(), 'prisma', 'caf-marketplace-store.json');
+const TMP_DATA_FILE_PATH = path.join(os.tmpdir(), 'caf-marketplace-store.json');
 
 export function hashPassword(password: string): string {
   return crypto.createHash('sha256').update(`caf_salt_${password}`).digest('hex');
@@ -610,10 +612,14 @@ export function matchesProductCategory(product: Product, category: Category | st
 
 export function computeCategoriesWithLiveCounts(
   categories: Category[],
-  products: Product[]
+  products: Product[],
+  publishedOnly = true
 ): Category[] {
+  const countableProducts = publishedOnly
+    ? products.filter((p) => p.isPublished !== false)
+    : products;
   return categories.map((cat) => {
-    const liveCount = products.filter((p) => matchesProductCategory(p, cat)).length;
+    const liveCount = countableProducts.filter((p) => matchesProductCategory(p, cat)).length;
     return {
       ...cat,
       productCount: liveCount,
@@ -623,8 +629,15 @@ export function computeCategoriesWithLiveCounts(
 
 export function readDb(): DatabaseSchema {
   try {
-    if (fs.existsSync(DATA_FILE_PATH)) {
-      const raw = fs.readFileSync(DATA_FILE_PATH, 'utf-8');
+    // Prefer writable /tmp snapshot if a warm serverless instance already wrote mutations there, falling back to repo prisma/caf-marketplace-store.json
+    const activeFilePath = fs.existsSync(TMP_DATA_FILE_PATH)
+      ? TMP_DATA_FILE_PATH
+      : fs.existsSync(DATA_FILE_PATH)
+        ? DATA_FILE_PATH
+        : null;
+
+    if (activeFilePath) {
+      const raw = fs.readFileSync(activeFilePath, 'utf-8');
       const parsed = JSON.parse(raw) as Partial<DatabaseSchema>;
       const catalogMap = new Map(PRODUCTS_CATALOG.map((p) => [p.id, p]));
 
@@ -650,10 +663,14 @@ export function readDb(): DatabaseSchema {
             p.images.some((u) => u.startsWith('data:image/') || !u.includes('images.unsplash.com'));
           return {
             ...p,
+            isPublished: p.isPublished !== false,
             images: hasAdminCustomPhoto ? p.images : canonical.images,
           };
         }
-        return p;
+        return {
+          ...p,
+          isPublished: p.isPublished !== false,
+        };
       });
 
       const rawCategories: Category[] =
@@ -735,13 +752,19 @@ export function saveDb(data: DatabaseSchema): void {
     : JSON.parse(JSON.stringify(FURNITURE_CATEGORIES));
   data.categories = computeCategoriesWithLiveCounts(baseCategories, liveProducts);
   memoryCache = data;
+  const serialized = JSON.stringify(data, null, 2);
   try {
     const dir = path.dirname(DATA_FILE_PATH);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
-    fs.writeFileSync(DATA_FILE_PATH, JSON.stringify(data, null, 2), 'utf-8');
+    fs.writeFileSync(DATA_FILE_PATH, serialized, 'utf-8');
   } catch {
-    // In read-only cloud environments, memoryCache preserves session state
+    // Primary repo path is read-only on Vercel serverless
+  }
+  try {
+    fs.writeFileSync(TMP_DATA_FILE_PATH, serialized, 'utf-8');
+  } catch {
+    // memoryCache preserves state if tmp is unavailable
   }
 }

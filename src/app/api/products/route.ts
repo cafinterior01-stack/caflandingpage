@@ -21,11 +21,17 @@ export async function GET(request: NextRequest) {
   const minPrice = Number(searchParams.get('minPrice') || 0);
   const maxPrice = Number(searchParams.get('maxPrice') || 0);
 
+  const includeDrafts = searchParams.get('includeDrafts') === 'true';
+
   const db = readDb();
-  const allProducts = Array.isArray(db.products) ? db.products : [];
+  const rawProducts = Array.isArray(db.products) ? db.products : [];
+  const allProducts = includeDrafts
+    ? rawProducts
+    : rawProducts.filter((p) => p.isPublished !== false);
   const allCategories = computeCategoriesWithLiveCounts(
     Array.isArray(db.categories) ? db.categories : FURNITURE_CATEGORIES,
-    allProducts
+    allProducts,
+    !includeDrafts
   );
   let results = [...allProducts];
 
@@ -123,6 +129,7 @@ export async function POST(request: NextRequest) {
       isFeatured = true,
       isBestSeller = true,
       isNewArrival = true,
+      isPublished = true,
     } = body;
 
     if (!name || price === undefined || price === null || Number(price) <= 0) {
@@ -222,6 +229,7 @@ export async function POST(request: NextRequest) {
       isBestSeller: Boolean(isBestSeller),
       isNewArrival: Boolean(isNewArrival),
       isExclusiveOffer: Boolean(originalPrice && Number(originalPrice) > Number(price)),
+      isPublished: isPublished !== false,
       paySmallSmall: {
         eligible: Boolean(paySmallSmallEligible),
         depositPercentage: Number(depositPercentage),

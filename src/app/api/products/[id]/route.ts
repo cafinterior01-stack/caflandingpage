@@ -58,6 +58,21 @@ export async function PUT(
       (p) => p.id === params.id || p.slug === params.id
     );
     if (idx === -1) {
+      // If a serverless cold-start hasn't seen this client-persisted custom product yet, insert it and apply updates
+      if (updates.fullProduct && updates.fullProduct.id) {
+        const hydrated = {
+          ...updates.fullProduct,
+          ...updates,
+        };
+        delete hydrated.fullProduct;
+        db.products.unshift(hydrated);
+        saveDb(db);
+        return NextResponse.json({
+          product: hydrated,
+          categories: db.categories,
+          message: `Updated "${hydrated.name}".`,
+        });
+      }
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
@@ -105,6 +120,18 @@ export async function PUT(
     }
     if (updates.paySmallSmallEligible !== undefined) {
       current.paySmallSmall.eligible = Boolean(updates.paySmallSmallEligible);
+    }
+    if (updates.isPublished !== undefined) {
+      current.isPublished = Boolean(updates.isPublished);
+    }
+    if (updates.isFeatured !== undefined) {
+      current.isFeatured = Boolean(updates.isFeatured);
+    }
+    if (updates.isBestSeller !== undefined) {
+      current.isBestSeller = Boolean(updates.isBestSeller);
+    }
+    if (updates.isNewArrival !== undefined) {
+      current.isNewArrival = Boolean(updates.isNewArrival);
     }
     if (updates.depositPercentage !== undefined) {
       current.paySmallSmall.depositPercentage = Number(updates.depositPercentage);

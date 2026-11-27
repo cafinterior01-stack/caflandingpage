@@ -85,8 +85,11 @@ export default function AdminDashboardPage() {
   const [editProdAvailability, setEditProdAvailability] = useState<'IN_STOCK' | 'MADE_TO_ORDER' | 'LIMITED_EDITION'>('IN_STOCK');
   const [editProdPss, setEditProdPss] = useState(true);
   const [editProdDepositPct, setEditProdDepositPct] = useState(33.33);
+  const [editProdPublished, setEditProdPublished] = useState(true);
   const [editProdImages, setEditProdImages] = useState<string[]>([]);
   const [editProdImageUrlInput, setEditProdImageUrlInput] = useState('');
+  const [adminProdSearch, setAdminProdSearch] = useState('');
+  const [adminProdCatFilter, setAdminProdCatFilter] = useState('all');
 
   // New Category Form State
   const [newCatName, setNewCatName] = useState('');
@@ -296,7 +299,9 @@ export default function AdminDashboardPage() {
         availability: editProdAvailability,
         paySmallSmallEligible: editProdPss,
         depositPercentage: editProdDepositPct,
+        isPublished: editProdPublished,
         images: finalEditImages,
+        fullProduct: editingProduct,
       }),
     });
     const data = await res.json();
@@ -318,6 +323,39 @@ export default function AdminDashboardPage() {
       await Promise.all([loadAdminDashboard(), refreshCatalog()]);
     } else {
       showToast(data.error || 'Could not update product.');
+    }
+  };
+
+  const handleTogglePublishProduct = async (product: Product) => {
+    const nextPublished = product.isPublished === false ? true : false;
+    const res = await fetch(`/api/products/${encodeURIComponent(product.id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        isPublished: nextPublished,
+        fullProduct: product,
+      }),
+    });
+    const data = await res.json();
+    const updatedProd: Product = data.product || { ...product, isPublished: nextPublished };
+    try {
+      const raw = localStorage.getItem('caf_admin_custom_products');
+      const list: Product[] = raw ? JSON.parse(raw) : [];
+      const filtered = list.filter((p) => p.id !== product.id);
+      localStorage.setItem(
+        'caf_admin_custom_products',
+        JSON.stringify([updatedProd, ...filtered])
+      );
+    } catch {
+      // ignore
+    }
+    if (res.ok || updatedProd) {
+      showToast(
+        nextPublished
+          ? `Published "${product.name}" to live storefront.`
+          : `Unpublished "${product.name}" (saved as draft).`
+      );
+      await Promise.all([loadAdminDashboard(), refreshCatalog()]);
     }
   };
 
@@ -1125,7 +1163,7 @@ export default function AdminDashboardPage() {
                               />
                             </div>
                             <div className="form-row-2" style={{ marginTop: '0.5rem' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', paddingTop: '0.5rem' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', paddingTop: '0.35rem' }}>
                                 <label className="checkout-terms-check">
                                   <input
                                     type="checkbox"
@@ -1133,6 +1171,14 @@ export default function AdminDashboardPage() {
                                     onChange={(e) => setEditProdPss(e.target.checked)}
                                   />
                                   <span>Pay Small Small Eligible</span>
+                                </label>
+                                <label className="checkout-terms-check">
+                                  <input
+                                    type="checkbox"
+                                    checked={editProdPublished}
+                                    onChange={(e) => setEditProdPublished(e.target.checked)}
+                                  />
+                                  <span>Published on Live Storefront</span>
                                 </label>
                               </div>
                               <div>
@@ -1215,6 +1261,29 @@ export default function AdminDashboardPage() {
                           </form>
                         )}
 
+                        {/* Admin Catalog Quick Search & Department Filter */}
+                        <div className="form-row-2" style={{ marginBottom: '1rem' }}>
+                          <input
+                            type="text"
+                            className="checkout-input"
+                            placeholder="Filter catalog by name or SKU..."
+                            value={adminProdSearch}
+                            onChange={(e) => setAdminProdSearch(e.target.value)}
+                          />
+                          <select
+                            className="checkout-input"
+                            value={adminProdCatFilter}
+                            onChange={(e) => setAdminProdCatFilter(e.target.value)}
+                          >
+                            <option value="all">All Departments ({products.length})</option>
+                            {categories.map((c) => (
+                              <option key={c.id} value={c.name}>
+                                {c.name} ({c.productCount})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
                         {products.length === 0 ? (
                           <div style={{ padding: '2rem 1rem', textAlign: 'center', color: '#57534e' }}>
                             <p style={{ marginBottom: '0.5rem' }}>
@@ -1227,7 +1296,25 @@ export default function AdminDashboardPage() {
                           </div>
                         ) : (
                           <div className="admin-scroll-list">
-                            {products.map((p) => (
+                            {products
+                              .filter((p) => {
+                                if (
+                                  adminProdCatFilter !== 'all' &&
+                                  p.categoryName !== adminProdCatFilter
+                                ) {
+                                  return false;
+                                }
+                                if (adminProdSearch.trim()) {
+                                  const q = adminProdSearch.toLowerCase();
+                                  return (
+                                    p.name.toLowerCase().includes(q) ||
+                                    p.sku.toLowerCase().includes(q) ||
+                                    p.categoryName.toLowerCase().includes(q)
+                                  );
+                                }
+                                return true;
+                              })
+                              .map((p) => (
                               <div key={p.id} className="admin-list-item">
                                 {p.images?.[0] ? (
                                   <img src={p.images[0]} alt={p.name} className="admin-item-thumb" />
@@ -1248,13 +1335,34 @@ export default function AdminDashboardPage() {
                                   </div>
                                 )}
                                 <div style={{ flex: 1 }}>
-                                  <strong>{p.name}</strong>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                                    <Link
+                                      href={`/product/${p.slug}`}
+                                      style={{ fontWeight: 700, textDecoration: 'underline' }}
+                                    >
+                                      {p.name}
+                                    </Link>
+                                    <span
+                                      className={p.isPublished === false ? 'badge-dark' : 'badge-pss'}
+                                      style={{ fontSize: '0.6rem', padding: '0.15rem 0.45rem' }}
+                                    >
+                                      {p.isPublished === false ? 'Draft (Hidden)' : 'Published'}
+                                    </span>
+                                  </div>
                                   <div style={{ fontSize: '0.78rem', color: '#57534e' }}>
                                     {p.categoryName} • {formatNaira(p.price)} •{' '}
                                     {p.paySmallSmall.eligible ? 'Pay Small Small' : 'Outright Only'}
                                   </div>
                                 </div>
-                                <div style={{ display: 'flex', gap: '0.45rem' }}>
+                                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                                  <button
+                                    type="button"
+                                    className="btn-outline-dark"
+                                    style={{ minHeight: '34px', padding: '0.3rem 0.65rem', fontSize: '0.68rem' }}
+                                    onClick={() => handleTogglePublishProduct(p)}
+                                  >
+                                    {p.isPublished === false ? 'Publish' : 'Unpublish'}
+                                  </button>
                                   <button
                                     type="button"
                                     className="btn-outline-dark"
@@ -1269,6 +1377,7 @@ export default function AdminDashboardPage() {
                                       setEditProdAvailability(p.availability);
                                       setEditProdPss(p.paySmallSmall.eligible);
                                       setEditProdDepositPct(p.paySmallSmall.depositPercentage);
+                                      setEditProdPublished(p.isPublished !== false);
                                       setEditProdImages(Array.isArray(p.images) ? [...p.images] : []);
                                     }}
                                   >
