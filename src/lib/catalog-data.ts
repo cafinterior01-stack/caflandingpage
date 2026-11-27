@@ -160,8 +160,8 @@ export const PRODUCTS_CATALOG: Product[] = [
     originalPrice: 1750000,
     images: [
       'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=85',
-      'https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=1200&q=85',
-      'https://images.unsplash.com/photo-1540518614846-7ede433c457?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1505693314120-0d443867891c?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=1200&q=85',
     ],
     sizes: [
       { label: '6x6 ft (King Standard)', dimensions: '183cm × 183cm × 150cm H', priceAdjustment: 0 },
@@ -216,7 +216,7 @@ export const PRODUCTS_CATALOG: Product[] = [
     images: [
       'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=85',
       'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=1200&q=85',
-      'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1540574163026-643ea20ade25?auto=format&fit=crop&w=1200&q=85',
     ],
     sizes: [
       { label: '7-Seater Grand L-Shape', dimensions: '360cm × 240cm × 102cm D', priceAdjustment: 0 },
@@ -322,6 +322,7 @@ export const PRODUCTS_CATALOG: Product[] = [
     images: [
       'https://images.unsplash.com/photo-1593696140826-c58b021acf8b?auto=format&fit=crop&w=1200&q=85',
       'https://images.unsplash.com/photo-1600585152220-90363fe7e115?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1509600110300-21b9d5fedeb7?auto=format&fit=crop&w=1200&q=85',
     ],
     sizes: [
       { label: '220cm (Fits up to 85" TV)', dimensions: '220cm L × 45cm D × 52cm H', priceAdjustment: 0 },
@@ -372,7 +373,8 @@ export const PRODUCTS_CATALOG: Product[] = [
     originalPrice: 2700000,
     images: [
       'https://images.unsplash.com/photo-1558997519-83ea9252edf8?auto=format&fit=crop&w=1200&q=85',
-      'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1616047006789-b7af5afb8c20?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1567016432779-094069958ea5?auto=format&fit=crop&w=1200&q=85',
     ],
     sizes: [
       { label: '4-Door Grand (240cm Width)', dimensions: '240cm W × 60cm D × 240cm H', priceAdjustment: 0 },
@@ -423,6 +425,7 @@ export const PRODUCTS_CATALOG: Product[] = [
     images: [
       'https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=1200&q=85',
       'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=1200&q=85',
     ],
     sizes: [
       { label: '220cm Executive L-Desk + Credenza', dimensions: '220cm × 180cm × 76cm H', priceAdjustment: 0 },
@@ -471,7 +474,8 @@ export const PRODUCTS_CATALOG: Product[] = [
     originalPrice: 790000,
     images: [
       'https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?auto=format&fit=crop&w=1200&q=85',
-      'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1565191999001-551c187427bb?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1538688525198-9b88f6f53126?auto=format&fit=crop&w=1200&q=85',
     ],
     sizes: [
       { label: 'Dual-Tier Set (110cm + 70cm)', dimensions: '110cm Dia × 38cm H', priceAdjustment: 0 },
@@ -521,6 +525,7 @@ export const PRODUCTS_CATALOG: Product[] = [
     images: [
       'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=1200&q=85',
       'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1200&q=85',
     ],
     sizes: [
       { label: 'Standard L-Kitchen + 2.4m Island', dimensions: 'Custom Fitted up to 16 Linear Meters', priceAdjustment: 0 },
@@ -570,6 +575,7 @@ export const PRODUCTS_CATALOG: Product[] = [
     images: [
       'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=1200&q=85',
       'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?auto=format&fit=crop&w=1200&q=85',
     ],
     sizes: [
       { label: 'Lounge Chair Only', dimensions: '88cm W × 86cm D × 78cm H', priceAdjustment: -120000 },
@@ -618,8 +624,9 @@ export const PRODUCTS_CATALOG: Product[] = [
     price: 890000,
     originalPrice: 1020000,
     images: [
-      'https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=1200&q=85',
       'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=85',
     ],
     sizes: [
       { label: '140cm Vanity + LED Mirror + Stool', dimensions: '140cm W × 50cm D × 78cm H', priceAdjustment: 0 },
@@ -669,6 +676,7 @@ export const PRODUCTS_CATALOG: Product[] = [
     images: [
       'https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=1200&q=85',
       'https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1560185893-a55cbc8c57e8?auto=format&fit=crop&w=1200&q=85',
     ],
     sizes: [
       { label: '5-Piece Terrace Set (3-Seater + 2 Loungers + Table)', dimensions: 'Fits 3.5m × 3m Deck', priceAdjustment: 0 },
@@ -717,7 +725,8 @@ export const PRODUCTS_CATALOG: Product[] = [
     originalPrice: 395000,
     images: [
       'https://images.unsplash.com/photo-1532372320572-cda25653a26d?auto=format&fit=crop&w=1200&q=85',
-      'https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1544457070-4cd773b4d71e?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1499933374294-4584851497cc?auto=format&fit=crop&w=1200&q=85',
     ],
     sizes: [
       { label: 'Single Side Table (45cm Dia × 54cm H)', dimensions: '45cm Dia × 54cm H', priceAdjustment: 0 },
@@ -766,7 +775,8 @@ export const PRODUCTS_CATALOG: Product[] = [
     originalPrice: 920000,
     images: [
       'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?auto=format&fit=crop&w=1200&q=85',
-      'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1540932239986-30128078f3c5?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1565814329452-e1efa11c5b89?auto=format&fit=crop&w=1200&q=85',
     ],
     sizes: [
       { label: 'Complete Set (Chandelier + 210cm Floor Mirror)', dimensions: '100cm Dia Light + 210×110cm Mirror', priceAdjustment: 0 },
@@ -815,6 +825,7 @@ export const PRODUCTS_CATALOG: Product[] = [
     images: [
       'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=1200&q=85',
       'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=1200&q=85',
     ],
     sizes: [
       { label: 'Single Room Custom Package', dimensions: 'Measured on Site by CAF Engineers', priceAdjustment: 0 },
@@ -862,7 +873,8 @@ export const PRODUCTS_CATALOG: Product[] = [
     originalPrice: 560000,
     images: [
       'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=1200&q=85',
-      'https://images.unsplash.com/photo-1616046229478-9901c5536a45?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?auto=format&fit=crop&w=1200&q=85',
     ],
     sizes: [
       { label: '3-Panel Gallery Triptych (240cm Total Span × 120cm H)', dimensions: '3 × (80cm × 120cm)', priceAdjustment: 0 },
@@ -911,7 +923,8 @@ export const PRODUCTS_CATALOG: Product[] = [
     originalPrice: 780000,
     images: [
       'https://images.unsplash.com/photo-1600166898405-da9535204843?auto=format&fit=crop&w=1200&q=85',
-      'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1575414003591-ece8d0416c7a?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1534889156217-d643df14f14a?auto=format&fit=crop&w=1200&q=85',
     ],
     sizes: [
       { label: 'Large Salon Size (240cm × 340cm)', dimensions: '240cm × 340cm (18mm Plush Pile)', priceAdjustment: 0 },
@@ -961,7 +974,8 @@ export const PRODUCTS_CATALOG: Product[] = [
     originalPrice: 265000,
     images: [
       'https://images.unsplash.com/photo-1612196808214-b8e1d6145a8c?auto=format&fit=crop&w=1200&q=85',
-      'https://images.unsplash.com/photo-1616046229478-9901c5536a45?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1578500494198-246f612d3b3d?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1581783898377-1c85bf937427?auto=format&fit=crop&w=1200&q=85',
     ],
     sizes: [
       { label: 'Complete Trio + Botanical Stems (45cm, 34cm, 24cm H)', dimensions: 'Set of 3 Graduated Vases', priceAdjustment: 0 },
@@ -1010,7 +1024,8 @@ export const PRODUCTS_CATALOG: Product[] = [
     originalPrice: 440000,
     images: [
       'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=1200&q=85',
-      'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1517991104123-1d56a6e81ed9?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1534105615256-13940a56ff44?auto=format&fit=crop&w=1200&q=85',
     ],
     sizes: [
       { label: 'Matched Pair (Set of 2 Lamps — 68cm H)', dimensions: '2 × (38cm Shade Dia × 68cm H)', priceAdjustment: 0 },
@@ -1059,7 +1074,8 @@ export const PRODUCTS_CATALOG: Product[] = [
     originalPrice: 310000,
     images: [
       'https://images.unsplash.com/photo-1616046229478-9901c5536a45?auto=format&fit=crop&w=1200&q=85',
-      'https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1602874801007-bd458bb1b8b6?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=1200&q=85',
     ],
     sizes: [
       { label: '5-Piece Complete Centre-Table Set', dimensions: '45cm × 30cm Marble Tray + 4 Accents', priceAdjustment: 0 },
@@ -1108,7 +1124,8 @@ export const PRODUCTS_CATALOG: Product[] = [
     originalPrice: 225000,
     images: [
       'https://images.unsplash.com/photo-1584100936595-c0654b55a2e2?auto=format&fit=crop&w=1200&q=85',
-      'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1579656381226-5fc0f0100c3b?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1629949009765-40fc74c9ec21?auto=format&fit=crop&w=1200&q=85',
     ],
     sizes: [
       { label: 'Set of 6 (4 × 55×55cm Squares + 2 × 60×35cm Lumbars)', dimensions: 'Includes Plush Feather Inserts', priceAdjustment: 0 },

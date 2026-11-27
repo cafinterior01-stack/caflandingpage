@@ -32,7 +32,7 @@ interface AdminAnalytics {
 
 export default function AdminDashboardPage() {
   const router = useRouter();
-  const { user, authLoading, logout, showToast } = useMarketplace();
+  const { user, authLoading, logout, refreshCatalog, showToast } = useMarketplace();
 
   const [activeModule, setActiveModule] = useState<
     | 'analytics'
@@ -68,9 +68,7 @@ export default function AdminDashboardPage() {
   const [prodPrice, setProdPrice] = useState(1250000);
   const [prodOriginalPrice, setProdOriginalPrice] = useState(1450000);
   const [prodShortDesc, setProdShortDesc] = useState('');
-  const [prodImages, setProdImages] = useState<string[]>([
-    'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1000&q=80',
-  ]);
+  const [prodImages, setProdImages] = useState<string[]>([]);
   const [prodImageUrlInput, setProdImageUrlInput] = useState('');
   const [prodAvailability, setProdAvailability] = useState<'IN_STOCK' | 'MADE_TO_ORDER'>('IN_STOCK');
   const [prodPssEligible, setProdPssEligible] = useState(true);
@@ -79,8 +77,16 @@ export default function AdminDashboardPage() {
 
   // Inline Edit Product State
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editProdName, setEditProdName] = useState('');
+  const [editProdCat, setEditProdCat] = useState('Living Room Furniture');
   const [editProdPrice, setEditProdPrice] = useState(0);
+  const [editProdOriginalPrice, setEditProdOriginalPrice] = useState(0);
+  const [editProdShortDesc, setEditProdShortDesc] = useState('');
+  const [editProdAvailability, setEditProdAvailability] = useState<'IN_STOCK' | 'MADE_TO_ORDER' | 'LIMITED_EDITION'>('IN_STOCK');
   const [editProdPss, setEditProdPss] = useState(true);
+  const [editProdDepositPct, setEditProdDepositPct] = useState(33.33);
+  const [editProdImages, setEditProdImages] = useState<string[]>([]);
+  const [editProdImageUrlInput, setEditProdImageUrlInput] = useState('');
 
   // New Category Form State
   const [newCatName, setNewCatName] = useState('');
@@ -161,6 +167,10 @@ export default function AdminDashboardPage() {
 
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    const finalImages =
+      prodImageUrlInput.trim() && !prodImages.includes(prodImageUrlInput.trim())
+        ? [prodImageUrlInput.trim(), ...prodImages]
+        : prodImages;
     const res = await fetch('/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -170,7 +180,7 @@ export default function AdminDashboardPage() {
         price: prodPrice,
         originalPrice: prodOriginalPrice,
         shortDescription: prodShortDesc,
-        images: prodImages,
+        images: finalImages,
         availability: prodAvailability,
         paySmallSmallEligible: prodPssEligible,
         depositPercentage: prodDepositPct,
@@ -182,28 +192,59 @@ export default function AdminDashboardPage() {
       showToast(data.message);
       setProdName('');
       setProdShortDesc('');
-      await loadAdminDashboard();
+      setProdImages([]);
+      setProdImageUrlInput('');
+      await Promise.all([loadAdminDashboard(), refreshCatalog()]);
     } else {
       showToast(data.error || 'Could not add product.');
     }
   };
 
+  const handleEditProductPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    Array.from(files).slice(0, 4).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setEditProdImages((prev) => [reader.result as string, ...prev]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    showToast('Added product photograph to gallery.');
+  };
+
   const handleSaveProductEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct) return;
+    const finalEditImages =
+      editProdImageUrlInput.trim() && !editProdImages.includes(editProdImageUrlInput.trim())
+        ? [editProdImageUrlInput.trim(), ...editProdImages]
+        : editProdImages;
     const res = await fetch(`/api/products/${encodeURIComponent(editingProduct.id)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        name: editProdName,
+        categoryName: editProdCat,
         price: editProdPrice,
+        originalPrice: editProdOriginalPrice,
+        shortDescription: editProdShortDesc,
+        availability: editProdAvailability,
         paySmallSmallEligible: editProdPss,
+        depositPercentage: editProdDepositPct,
+        images: finalEditImages,
       }),
     });
     const data = await res.json();
     if (res.ok) {
       showToast(data.message);
       setEditingProduct(null);
-      await loadAdminDashboard();
+      setEditProdImageUrlInput('');
+      await Promise.all([loadAdminDashboard(), refreshCatalog()]);
+    } else {
+      showToast(data.error || 'Could not update product.');
     }
   };
 
@@ -212,8 +253,11 @@ export default function AdminDashboardPage() {
       method: 'DELETE',
     });
     if (res.ok) {
+      if (editingProduct?.id === productId) {
+        setEditingProduct(null);
+      }
       showToast('Product removed from marketplace.');
-      await loadAdminDashboard();
+      await Promise.all([loadAdminDashboard(), refreshCatalog()]);
     }
   };
 
@@ -233,7 +277,9 @@ export default function AdminDashboardPage() {
       showToast(data.message);
       setNewCatName('');
       setNewCatDesc('');
-      await loadAdminDashboard();
+      await Promise.all([loadAdminDashboard(), refreshCatalog()]);
+    } else {
+      showToast(data.error || 'Could not add category.');
     }
   };
 
@@ -664,7 +710,7 @@ export default function AdminDashboardPage() {
                               month: 'Nov (MTD)',
                               amount: formatNaira(
                                 analytics.totalSalesContractValue +
-                                  interiorProjects.reduce((s, p) => s + p.approvedContractAmount, 0)
+                                interiorProjects.reduce((s, p) => s + p.approvedContractAmount, 0)
                               ),
                               height: '100%',
                             },
@@ -736,739 +782,912 @@ export default function AdminDashboardPage() {
                     </div>
                   )}
 
-              {/* MODULE 2: PRODUCTS, PHOTOGRAPHS, PRICES & INVENTORY CRUD */}
-              {activeModule === 'products' && (
-                <div className="pss-studio-grid">
-                  {/* Left: Add New Product Form */}
-                  <div className="checkout-panel">
-                    <h3>Add New Luxury Furniture Product</h3>
-                    <form onSubmit={handleAddProduct}>
-                      <div className="form-group">
-                        <label className="form-label dark-label">Product Name *</label>
-                        <input
-                          type="text"
-                          className="checkout-input"
-                          value={prodName}
-                          onChange={(e) => setProdName(e.target.value)}
-                          placeholder="e.g. Presidential 7x7 Tufted Velvet Emperor Bed"
-                          required
-                        />
-                      </div>
-
-                      <div className="form-row-2">
-                        <div className="form-group">
-                          <label className="form-label dark-label">Category *</label>
-                          <select
-                            className="checkout-input"
-                            value={prodCat}
-                            onChange={(e) => setProdCat(e.target.value)}
-                          >
-                            {categories.map((c) => (
-                              <option key={c.id} value={c.name}>
-                                {c.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label dark-label">Inventory Status</label>
-                          <select
-                            className="checkout-input"
-                            value={prodAvailability}
-                            onChange={(e) =>
-                              setProdAvailability(e.target.value as 'IN_STOCK' | 'MADE_TO_ORDER')
-                            }
-                          >
-                            <option value="IN_STOCK">In Stock</option>
-                            <option value="MADE_TO_ORDER">Made to Order</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="form-row-2">
-                        <div className="form-group">
-                          <label className="form-label dark-label">Selling Price (₦) *</label>
-                          <input
-                            type="number"
-                            className="checkout-input"
-                            value={prodPrice}
-                            onChange={(e) => setProdPrice(Number(e.target.value))}
-                            required
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label dark-label">Original Price (₦)</label>
-                          <input
-                            type="number"
-                            className="checkout-input"
-                            value={prodOriginalPrice}
-                            onChange={(e) => setProdOriginalPrice(Number(e.target.value))}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Upload Product Photographs */}
-                      <div className="upload-block">
-                        <label className="form-label dark-label">Upload Product Photographs</label>
-                        <div className="upload-controls-row">
-                          <label className="file-upload-btn">
-                            <input
-                              type="file"
-                              accept="image/*"
-                              multiple
-                              onChange={handleProductPhotoUpload}
-                            />
-                            <span>+ Upload Product Photo</span>
-                          </label>
-                          <div className="url-append-box">
+                  {/* MODULE 2: PRODUCTS, PHOTOGRAPHS, PRICES & INVENTORY CRUD */}
+                  {activeModule === 'products' && (
+                    <div className="pss-studio-grid">
+                      {/* Left: Add New Product Form */}
+                      <div className="checkout-panel">
+                        <h3>Add New Luxury Furniture Product</h3>
+                        <form onSubmit={handleAddProduct}>
+                          <div className="form-group">
+                            <label className="form-label dark-label">Product Name *</label>
                             <input
                               type="text"
-                              placeholder="Or paste image URL..."
-                              value={prodImageUrlInput}
-                              onChange={(e) => setProdImageUrlInput(e.target.value)}
+                              className="checkout-input"
+                              value={prodName}
+                              onChange={(e) => setProdName(e.target.value)}
+                              placeholder="e.g. Presidential 7x7 Tufted Velvet Emperor Bed"
+                              required
                             />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (prodImageUrlInput.trim()) {
-                                  setProdImages((prev) => [prodImageUrlInput.trim(), ...prev]);
-                                  setProdImageUrlInput('');
-                                }
-                              }}
-                            >
-                              Add
-                            </button>
                           </div>
-                        </div>
-                        <div className="uploaded-thumbs-grid">
-                          {prodImages.map((img, i) => (
-                            <div key={i} className="uploaded-thumb-item">
-                              <img src={img} alt="Product" />
+
+                          <div className="form-row-2">
+                            <div className="form-group">
+                              <label className="form-label dark-label">Category *</label>
+                              <select
+                                className="checkout-input"
+                                value={prodCat}
+                                onChange={(e) => setProdCat(e.target.value)}
+                              >
+                                {categories.map((c) => (
+                                  <option key={c.id} value={c.name}>
+                                    {c.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="form-group">
+                              <label className="form-label dark-label">Inventory Status</label>
+                              <select
+                                className="checkout-input"
+                                value={prodAvailability}
+                                onChange={(e) =>
+                                  setProdAvailability(e.target.value as 'IN_STOCK' | 'MADE_TO_ORDER')
+                                }
+                              >
+                                <option value="IN_STOCK">In Stock</option>
+                                <option value="MADE_TO_ORDER">Made to Order</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="form-row-2">
+                            <div className="form-group">
+                              <label className="form-label dark-label">Selling Price (₦) *</label>
+                              <input
+                                type="number"
+                                className="checkout-input"
+                                value={prodPrice}
+                                onChange={(e) => setProdPrice(Number(e.target.value))}
+                                required
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label className="form-label dark-label">Original Price (₦)</label>
+                              <input
+                                type="number"
+                                className="checkout-input"
+                                value={prodOriginalPrice}
+                                onChange={(e) => setProdOriginalPrice(Number(e.target.value))}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Upload Product Photographs */}
+                          <div className="upload-block">
+                            <label className="form-label dark-label">Upload Product Photographs</label>
+                            <div className="upload-controls-row">
+                              <label className="file-upload-btn">
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  multiple
+                                  onChange={handleProductPhotoUpload}
+                                />
+                                <span>+ Upload Product Photo</span>
+                              </label>
+                              <div className="url-append-box">
+                                <input
+                                  type="text"
+                                  placeholder="Or paste image URL..."
+                                  value={prodImageUrlInput}
+                                  onChange={(e) => setProdImageUrlInput(e.target.value)}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (prodImageUrlInput.trim()) {
+                                      setProdImages((prev) => [prodImageUrlInput.trim(), ...prev]);
+                                      setProdImageUrlInput('');
+                                    }
+                                  }}
+                                >
+                                  Add
+                                </button>
+                              </div>
+                            </div>
+                            {prodImages.length > 0 && (
+                              <div className="uploaded-thumbs-grid">
+                                {prodImages.map((img, i) => (
+                                  <div key={i} className="uploaded-thumb-item">
+                                    <img src={img} alt={`Product ${i + 1}`} />
+                                    <button
+                                      type="button"
+                                      title="Remove image"
+                                      onClick={() =>
+                                        setProdImages((prev) => prev.filter((_, idx) => idx !== i))
+                                      }
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="form-row-2">
+                            <div className="form-group">
+                              <label className="form-label dark-label">Standard Dimensions</label>
+                              <input
+                                type="text"
+                                className="checkout-input"
+                                value={prodDimensions}
+                                onChange={(e) => setProdDimensions(e.target.value)}
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label className="form-label dark-label">Pay Small Small Deposit (%)</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                className="checkout-input"
+                                value={prodDepositPct}
+                                onChange={(e) => setProdDepositPct(Number(e.target.value))}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="form-group">
+                            <label className="form-label dark-label">Product Summary Description</label>
+                            <textarea
+                              className="checkout-input"
+                              rows={2}
+                              value={prodShortDesc}
+                              onChange={(e) => setProdShortDesc(e.target.value)}
+                              placeholder="Describe materials, comfort, and craftsmanship..."
+                            />
+                          </div>
+
+                          <label className="checkout-terms-check" style={{ marginBottom: '1rem' }}>
+                            <input
+                              type="checkbox"
+                              checked={prodPssEligible}
+                              onChange={(e) => setProdPssEligible(e.target.checked)}
+                            />
+                            <span>Qualifies for Pay Small Small Instalments</span>
+                          </label>
+
+                          <button type="submit" className="btn-gold" style={{ width: '100%' }}>
+                            + Publish Product to Marketplace
+                          </button>
+                        </form>
+                      </div>
+
+                      {/* Right: Catalog Inventory Table with Edit & Delete */}
+                      <div className="checkout-panel">
+                        <h3>Manage Catalog Products ({products.length})</h3>
+                        {editingProduct && (
+                          <form
+                            onSubmit={handleSaveProductEdit}
+                            className="checkout-pss-notice"
+                            style={{ marginBottom: '1.25rem' }}
+                          >
+                            <h4>Editing: {editingProduct.name}</h4>
+                            <div className="form-group" style={{ marginTop: '0.75rem' }}>
+                              <label className="form-label">Product Name</label>
+                              <input
+                                type="text"
+                                className="form-input"
+                                value={editProdName}
+                                onChange={(e) => setEditProdName(e.target.value)}
+                                required
+                              />
+                            </div>
+                            <div className="form-row-2">
+                              <div>
+                                <label className="form-label">Department / Category</label>
+                                <select
+                                  className="form-input"
+                                  value={editProdCat}
+                                  onChange={(e) => setEditProdCat(e.target.value)}
+                                >
+                                  {categories.map((c) => (
+                                    <option key={c.id} value={c.name}>
+                                      {c.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="form-label">Inventory Status</label>
+                                <select
+                                  className="form-input"
+                                  value={editProdAvailability}
+                                  onChange={(e) =>
+                                    setEditProdAvailability(
+                                      e.target.value as 'IN_STOCK' | 'MADE_TO_ORDER' | 'LIMITED_EDITION'
+                                    )
+                                  }
+                                >
+                                  <option value="IN_STOCK">In Stock</option>
+                                  <option value="MADE_TO_ORDER">Made to Order</option>
+                                </select>
+                              </div>
+                            </div>
+                            <div className="form-row-2" style={{ marginTop: '0.5rem' }}>
+                              <div>
+                                <label className="form-label">Selling Price (₦)</label>
+                                <input
+                                  type="number"
+                                  className="form-input"
+                                  value={editProdPrice}
+                                  onChange={(e) => setEditProdPrice(Number(e.target.value))}
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <label className="form-label">Original Price (₦)</label>
+                                <input
+                                  type="number"
+                                  className="form-input"
+                                  value={editProdOriginalPrice}
+                                  onChange={(e) => setEditProdOriginalPrice(Number(e.target.value))}
+                                />
+                              </div>
+                            </div>
+                            <div className="form-group" style={{ marginTop: '0.5rem' }}>
+                              <label className="form-label">Summary Description</label>
+                              <textarea
+                                className="form-input"
+                                rows={2}
+                                value={editProdShortDesc}
+                                onChange={(e) => setEditProdShortDesc(e.target.value)}
+                              />
+                            </div>
+                            <div className="form-row-2" style={{ marginTop: '0.5rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', paddingTop: '0.5rem' }}>
+                                <label className="checkout-terms-check">
+                                  <input
+                                    type="checkbox"
+                                    checked={editProdPss}
+                                    onChange={(e) => setEditProdPss(e.target.checked)}
+                                  />
+                                  <span>Pay Small Small Eligible</span>
+                                </label>
+                              </div>
+                              <div>
+                                <label className="form-label">Deposit (%)</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  className="form-input"
+                                  value={editProdDepositPct}
+                                  onChange={(e) => setEditProdDepositPct(Number(e.target.value))}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Gallery Images Editor */}
+                            <div style={{ marginTop: '0.75rem' }}>
+                              <label className="form-label">Product Photographs ({editProdImages.length})</label>
+                              <div className="upload-controls-row" style={{ marginTop: '0.35rem' }}>
+                                <label className="file-upload-btn">
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    onChange={handleEditProductPhotoUpload}
+                                  />
+                                  <span>+ Upload Photo</span>
+                                </label>
+                                <div className="url-append-box">
+                                  <input
+                                    type="text"
+                                    placeholder="Paste image URL..."
+                                    value={editProdImageUrlInput}
+                                    onChange={(e) => setEditProdImageUrlInput(e.target.value)}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (editProdImageUrlInput.trim()) {
+                                        setEditProdImages((prev) => [editProdImageUrlInput.trim(), ...prev]);
+                                        setEditProdImageUrlInput('');
+                                      }
+                                    }}
+                                  >
+                                    Add
+                                  </button>
+                                </div>
+                              </div>
+                              {editProdImages.length > 0 && (
+                                <div className="uploaded-thumbs-grid" style={{ marginTop: '0.5rem' }}>
+                                  {editProdImages.map((img, idx) => (
+                                    <div key={idx} className="uploaded-thumb-item">
+                                      <img src={img} alt={`Edit ${idx + 1}`} />
+                                      <button
+                                        type="button"
+                                        title="Remove photograph"
+                                        onClick={() =>
+                                          setEditProdImages((prev) => prev.filter((_, i) => i !== idx))
+                                        }
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.85rem' }}>
+                              <button type="submit" className="btn-gold">
+                                Save Changes
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-outline-gold"
+                                onClick={() => setEditingProduct(null)}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </form>
+                        )}
+
+                        {products.length === 0 ? (
+                          <div style={{ padding: '2rem 1rem', textAlign: 'center', color: '#57534e' }}>
+                            <p style={{ marginBottom: '0.5rem' }}>
+                              <strong>0 products currently in the catalog.</strong>
+                            </p>
+                            <p style={{ fontSize: '0.84rem' }}>
+                              Your live storefront is synchronized and also displays 0 products. Use the{' '}
+                              <strong>Add New Luxury Furniture Product</strong> form on the left to publish products to any department.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="admin-scroll-list">
+                            {products.map((p) => (
+                              <div key={p.id} className="admin-list-item">
+                                {p.images?.[0] ? (
+                                  <img src={p.images[0]} alt={p.name} className="admin-item-thumb" />
+                                ) : (
+                                  <div
+                                    className="admin-item-thumb"
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      background: '#161615',
+                                      color: '#d4af37',
+                                      fontSize: '0.62rem',
+                                      textAlign: 'center',
+                                    }}
+                                  >
+                                    CAF
+                                  </div>
+                                )}
+                                <div style={{ flex: 1 }}>
+                                  <strong>{p.name}</strong>
+                                  <div style={{ fontSize: '0.78rem', color: '#57534e' }}>
+                                    {p.categoryName} • {formatNaira(p.price)} •{' '}
+                                    {p.paySmallSmall.eligible ? 'Pay Small Small' : 'Outright Only'}
+                                  </div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.45rem' }}>
+                                  <button
+                                    type="button"
+                                    className="btn-outline-dark"
+                                    style={{ minHeight: '34px', padding: '0.3rem 0.7rem', fontSize: '0.7rem' }}
+                                    onClick={() => {
+                                      setEditingProduct(p);
+                                      setEditProdName(p.name);
+                                      setEditProdCat(p.categoryName);
+                                      setEditProdPrice(p.price);
+                                      setEditProdOriginalPrice(p.originalPrice || 0);
+                                      setEditProdShortDesc(p.shortDescription);
+                                      setEditProdAvailability(p.availability);
+                                      setEditProdPss(p.paySmallSmall.eligible);
+                                      setEditProdDepositPct(p.paySmallSmall.depositPercentage);
+                                      setEditProdImages(Array.isArray(p.images) ? [...p.images] : []);
+                                    }}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="compare-remove-tag"
+                                    onClick={() => handleDeleteProduct(p.id)}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* MODULE 3: CATEGORIES MANAGER */}
+                  {activeModule === 'categories' && (
+                    <div className="pss-studio-grid">
+                      <div className="checkout-panel">
+                        <h3>Add New Furniture Category</h3>
+                        <form onSubmit={handleAddCategory}>
+                          <div className="form-group">
+                            <label className="form-label dark-label">Category Name *</label>
+                            <input
+                              type="text"
+                              className="checkout-input"
+                              value={newCatName}
+                              onChange={(e) => setNewCatName(e.target.value)}
+                              placeholder="e.g. Home Cinema & Acoustic Loungers"
+                              required
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label dark-label">Description</label>
+                            <textarea
+                              className="checkout-input"
+                              rows={2}
+                              value={newCatDesc}
+                              onChange={(e) => setNewCatDesc(e.target.value)}
+                              placeholder="Describe this furniture department..."
+                            />
+                          </div>
+                          <button type="submit" className="btn-gold">
+                            + Create Category
+                          </button>
+                        </form>
+                      </div>
+
+                      <div className="checkout-panel">
+                        <h3>Active Marketplace Categories ({categories.length})</h3>
+                        <div className="admin-scroll-list">
+                          {categories.map((cat) => (
+                            <div key={cat.id} className="admin-list-item">
+                              <img src={cat.image} alt={cat.name} className="admin-item-thumb" />
+                              <div style={{ flex: 1 }}>
+                                <strong>{cat.name}</strong>
+                                <div style={{ fontSize: '0.78rem', color: '#57534e' }}>
+                                  Slug: /{cat.slug} • {cat.productCount} Pieces
+                                </div>
+                              </div>
                             </div>
                           ))}
                         </div>
                       </div>
-
-                      <div className="form-row-2">
-                        <div className="form-group">
-                          <label className="form-label dark-label">Standard Dimensions</label>
-                          <input
-                            type="text"
-                            className="checkout-input"
-                            value={prodDimensions}
-                            onChange={(e) => setProdDimensions(e.target.value)}
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label dark-label">Pay Small Small Deposit (%)</label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            className="checkout-input"
-                            value={prodDepositPct}
-                            onChange={(e) => setProdDepositPct(Number(e.target.value))}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="form-group">
-                        <label className="form-label dark-label">Product Summary Description</label>
-                        <textarea
-                          className="checkout-input"
-                          rows={2}
-                          value={prodShortDesc}
-                          onChange={(e) => setProdShortDesc(e.target.value)}
-                          placeholder="Describe materials, comfort, and craftsmanship..."
-                        />
-                      </div>
-
-                      <label className="checkout-terms-check" style={{ marginBottom: '1rem' }}>
-                        <input
-                          type="checkbox"
-                          checked={prodPssEligible}
-                          onChange={(e) => setProdPssEligible(e.target.checked)}
-                        />
-                        <span>Qualifies for Pay Small Small Instalments</span>
-                      </label>
-
-                      <button type="submit" className="btn-gold" style={{ width: '100%' }}>
-                        + Publish Product to Marketplace
-                      </button>
-                    </form>
-                  </div>
-
-                  {/* Right: Catalog Inventory Table with Edit & Delete */}
-                  <div className="checkout-panel">
-                    <h3>Manage Catalog Products ({products.length})</h3>
-                    {editingProduct && (
-                      <form
-                        onSubmit={handleSaveProductEdit}
-                        className="checkout-pss-notice"
-                        style={{ marginBottom: '1.25rem' }}
-                      >
-                        <h4>Editing: {editingProduct.name}</h4>
-                        <div className="form-row-2" style={{ marginTop: '0.75rem' }}>
-                          <div>
-                            <label className="form-label">Price (₦)</label>
-                            <input
-                              type="number"
-                              className="form-input"
-                              value={editProdPrice}
-                              onChange={(e) => setEditProdPrice(Number(e.target.value))}
-                            />
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', paddingTop: '1.2rem' }}>
-                            <label className="checkout-terms-check">
-                              <input
-                                type="checkbox"
-                                checked={editProdPss}
-                                onChange={(e) => setEditProdPss(e.target.checked)}
-                              />
-                              <span>Pay Small Small Eligible</span>
-                            </label>
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.85rem' }}>
-                          <button type="submit" className="btn-gold">
-                            Save Changes
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-outline-gold"
-                            onClick={() => setEditingProduct(null)}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </form>
-                    )}
-
-                    <div className="admin-scroll-list">
-                      {products.map((p) => (
-                        <div key={p.id} className="admin-list-item">
-                          <img src={p.images[0]} alt={p.name} className="admin-item-thumb" />
-                          <div style={{ flex: 1 }}>
-                            <strong>{p.name}</strong>
-                            <div style={{ fontSize: '0.78rem', color: '#57534e' }}>
-                              {p.categoryName} • {formatNaira(p.price)} •{' '}
-                              {p.paySmallSmall.eligible ? 'Pay Small Small' : 'Outright Only'}
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', gap: '0.45rem' }}>
-                            <button
-                              type="button"
-                              className="btn-outline-dark"
-                              style={{ minHeight: '34px', padding: '0.3rem 0.7rem', fontSize: '0.7rem' }}
-                              onClick={() => {
-                                setEditingProduct(p);
-                                setEditProdPrice(p.price);
-                                setEditProdPss(p.paySmallSmall.eligible);
-                              }}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              className="compare-remove-tag"
-                              onClick={() => handleDeleteProduct(p.id)}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      ))}
                     </div>
-                  </div>
-                </div>
-              )}
-
-              {/* MODULE 3: CATEGORIES MANAGER */}
-              {activeModule === 'categories' && (
-                <div className="pss-studio-grid">
-                  <div className="checkout-panel">
-                    <h3>Add New Furniture Category</h3>
-                    <form onSubmit={handleAddCategory}>
-                      <div className="form-group">
-                        <label className="form-label dark-label">Category Name *</label>
-                        <input
-                          type="text"
-                          className="checkout-input"
-                          value={newCatName}
-                          onChange={(e) => setNewCatName(e.target.value)}
-                          placeholder="e.g. Home Cinema & Acoustic Loungers"
-                          required
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label dark-label">Description</label>
-                        <textarea
-                          className="checkout-input"
-                          rows={2}
-                          value={newCatDesc}
-                          onChange={(e) => setNewCatDesc(e.target.value)}
-                          placeholder="Describe this furniture department..."
-                        />
-                      </div>
-                      <button type="submit" className="btn-gold">
-                        + Create Category
-                      </button>
-                    </form>
-                  </div>
-
-                  <div className="checkout-panel">
-                    <h3>Active Marketplace Categories ({categories.length})</h3>
-                    <div className="admin-scroll-list">
-                      {categories.map((cat) => (
-                        <div key={cat.id} className="admin-list-item">
-                          <img src={cat.image} alt={cat.name} className="admin-item-thumb" />
-                          <div style={{ flex: 1 }}>
-                            <strong>{cat.name}</strong>
-                            <div style={{ fontSize: '0.78rem', color: '#57534e' }}>
-                              Slug: /{cat.slug} • {cat.productCount} Pieces
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* MODULE 4: ORDERS, DELIVERIES & INSTALMENT APPROVALS */}
-              {activeModule === 'orders' && (
-                <div className="account-orders-list">
-                  {orders.map((ord) => (
-                    <article key={ord.id} className="account-order-card">
-                      <div className="account-order-top">
-                        <div>
-                          <span className="badge-pss">{ord.orderNumber}</span>
-                          <strong style={{ marginLeft: '0.75rem' }}>
-                            {ord.customerName} ({ord.customerPhone})
-                          </strong>
-                          <span className="order-date">
-                            • {ord.deliveryAddress}, {ord.city}, {ord.state}
-                          </span>
-                        </div>
-                        <div className="account-order-statuses">
-                          <span className="badge-dark">Order: {ord.orderStatus}</span>
-                          <span className="badge-ivory">Payment: {ord.paymentStatus}</span>
-                          {ord.hasPaySmallSmall && (
-                            <span className="badge-gold-outline">
-                              Credit: {ord.instalmentApprovalStatus}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="account-order-footer" style={{ marginTop: '1rem' }}>
-                        <div className="account-order-totals">
-                          <span>Contract: <strong>{formatNaira(ord.totalOrderValue)}</strong></span>
-                          <span>Verified Paid: <strong style={{ color: '#15803d' }}>{formatNaira(ord.amountPaidVerified)}</strong></span>
-                          <span>Balance: <strong className="gold-text">{formatNaira(ord.remainingBalance)}</strong></span>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                          {ord.hasPaySmallSmall && (
-                            <>
-                              <button
-                                type="button"
-                                className="btn-gold"
-                                style={{ minHeight: '36px', padding: '0.4rem 0.9rem', fontSize: '0.72rem' }}
-                                onClick={() =>
-                                  handleUpdateOrderStatus(ord.id, {
-                                    instalmentApprovalStatus: 'APPROVED',
-                                  })
-                                }
-                              >
-                                ✓ Approve Instalment
-                              </button>
-                              <button
-                                type="button"
-                                className="compare-remove-tag"
-                                onClick={() =>
-                                  handleUpdateOrderStatus(ord.id, {
-                                    instalmentApprovalStatus: 'REJECTED',
-                                  })
-                                }
-                              >
-                                Reject Credit
-                              </button>
-                            </>
-                          )}
-
-                          <select
-                            className="shop-select"
-                            value={ord.orderStatus}
-                            onChange={(e) =>
-                              handleUpdateOrderStatus(ord.id, { orderStatus: e.target.value })
-                            }
-                          >
-                            <option value="PENDING_VERIFICATION">Pending Verification</option>
-                            <option value="IN_PRODUCTION">In Workshop Production</option>
-                            <option value="READY_FOR_DELIVERY">Ready for Delivery</option>
-                            <option value="DELIVERED">Delivered &amp; Installed</option>
-                            <option value="CANCELLED">Cancelled</option>
-                          </select>
-
-                          <Link
-                            href={`/checkout/success?order=${encodeURIComponent(ord.orderNumber)}`}
-                            className="btn-outline-dark"
-                            style={{ minHeight: '36px', padding: '0.4rem 0.9rem', fontSize: '0.72rem' }}
-                          >
-                            Invoice / Receipt
-                          </Link>
-                        </div>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              )}
-
-              {/* MODULE 5: PAYMENT VERIFICATION & RECEIPT GENERATOR */}
-              {activeModule === 'payments' && (
-                <div className="pss-studio-grid">
-                  <div className="checkout-panel">
-                    <h3>Record &amp; Verify Offline Corporate Bank Transfer</h3>
-                    <form onSubmit={handleRecordAndVerifyOfflinePayment}>
-                      <div className="form-group">
-                        <label className="form-label dark-label">Order Number *</label>
-                        <input
-                          type="text"
-                          className="checkout-input"
-                          value={manualPayOrderNum}
-                          onChange={(e) => setManualPayOrderNum(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label dark-label">Verified Amount Received (₦) *</label>
-                        <input
-                          type="number"
-                          className="checkout-input"
-                          value={manualPayAmount}
-                          onChange={(e) => setManualPayAmount(Number(e.target.value))}
-                          required
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label dark-label">Bank NIP Session ID / Reference</label>
-                        <input
-                          type="text"
-                          className="checkout-input"
-                          value={manualPayRef}
-                          onChange={(e) => setManualPayRef(e.target.value)}
-                          placeholder="e.g. 000014261123094821"
-                        />
-                      </div>
-                      <button type="submit" className="btn-gold" style={{ width: '100%' }}>
-                        Record, Verify &amp; Issue Official Receipt
-                      </button>
-                    </form>
-                  </div>
-
-                  <div className="checkout-panel">
-                    <h3>All Payment Submissions ({payments.length})</h3>
-                    <div className="admin-scroll-list">
-                      {payments.map((pay) => (
-                        <div key={pay.id} className="admin-list-item">
-                          <div style={{ flex: 1 }}>
-                            <strong>
-                              {pay.orderNumber} — {formatNaira(pay.amount)}
-                            </strong>
-                            <div style={{ fontSize: '0.78rem', color: '#57534e' }}>
-                              {pay.label} • {pay.paymentMethod} • Ref: {pay.paymentReference}
-                              {pay.receiptNumber ? ` • Receipt: ${pay.receiptNumber}` : ''}
-                            </div>
-                          </div>
-                          <div>
-                            {pay.status === 'VERIFIED' ? (
-                              <span className="badge-pss">VERIFIED</span>
-                            ) : (
-                              <button
-                                type="button"
-                                className="btn-gold"
-                                style={{ minHeight: '34px', padding: '0.35rem 0.85rem', fontSize: '0.72rem' }}
-                                onClick={() => handleVerifyPayment(pay.id)}
-                              >
-                                ✓ Verify &amp; Issue Receipt
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* MODULE 6: CUSTOM FURNITURE REQUESTS & QUOTATION SENDER */}
-              {activeModule === 'custom' && (
-                <div className="account-orders-list">
-                  {quotingEnquiry && (
-                    <form onSubmit={handleSendQuotation} className="checkout-pss-notice">
-                      <h4>
-                        Send Official Quotation to {quotingEnquiry.customerName} (
-                        {quotingEnquiry.enquiryNumber})
-                      </h4>
-                      <div className="form-row-2" style={{ marginTop: '0.75rem' }}>
-                        <div className="form-group">
-                          <label className="form-label">Specification Line Item</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            value={quoteItemDesc}
-                            onChange={(e) => setQuoteItemDesc(e.target.value)}
-                            required
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">Quoted Price (₦)</label>
-                          <input
-                            type="number"
-                            className="form-input"
-                            value={quoteItemPrice}
-                            onChange={(e) => setQuoteItemPrice(Number(e.target.value))}
-                            required
-                          />
-                        </div>
-                      </div>
-                      <div className="form-row-2">
-                        <div className="form-group">
-                          <label className="form-label">White-Glove Delivery Fee (₦)</label>
-                          <input
-                            type="number"
-                            className="form-input"
-                            value={quoteDeliveryFee}
-                            onChange={(e) => setQuoteDeliveryFee(Number(e.target.value))}
-                            required
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">Estimated Lead Time</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            value={quoteLeadTime}
-                            onChange={(e) => setQuoteLeadTime(e.target.value)}
-                            required
-                          />
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', gap: '0.75rem' }}>
-                        <button type="submit" className="btn-gold">
-                          Transmit Quotation to Customer Dashboard
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-outline-gold"
-                          onClick={() => setQuotingEnquiry(null)}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
                   )}
 
-                  {customEnquiries.map((enq) => (
-                    <article key={enq.id} className="account-order-card">
-                      <div className="account-order-top">
-                        <div>
-                          <span className="badge-pss">{enq.enquiryNumber}</span>
-                          <strong style={{ marginLeft: '0.75rem' }}>
-                            {enq.category} — {enq.customerName} ({enq.customerPhone})
-                          </strong>
-                        </div>
-                        <span className="badge-dark">{enq.status.replace(/_/g, ' ')}</span>
-                      </div>
-                      <p style={{ fontSize: '0.88rem', color: '#57534e', margin: '0.75rem 0' }}>
-                        <strong>Measurements:</strong> {enq.measurements} |{' '}
-                        <strong>Materials:</strong> {enq.preferredMaterials} |{' '}
-                        <strong>Finish:</strong> {enq.colorsAndFinishing} |{' '}
-                        <strong>Location:</strong> {enq.location}
-                        <br />
-                        <strong>Brief:</strong> {enq.requirementsDescription}
-                      </p>
-                      <div style={{ display: 'flex', gap: '0.75rem' }}>
-                        <button
-                          type="button"
-                          className="btn-gold"
-                          onClick={() => {
-                            setQuotingEnquiry(enq);
-                            setQuoteItemDesc(
-                              `Bespoke ${enq.category} (${enq.measurements} • ${enq.preferredMaterials})`
-                            );
-                          }}
-                        >
-                          Prepare &amp; Send Official Quotation
-                        </button>
-                        <a
-                          href={getWhatsAppUrl(
-                            `Hello ${enq.customerName}, this is CAF Interiors regarding your Custom Furniture Request ${enq.enquiryNumber}.`
-                          )}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn-outline-dark"
-                        >
-                          WhatsApp Client
-                        </a>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              )}
-
-              {/* MODULE 7: INTERIOR DESIGN PROJECTS & MILESTONES */}
-              {activeModule === 'projects' && (
-                <div className="account-orders-list">
-                  {interiorProjects.map((prj) => (
-                    <article key={prj.id} className="account-order-card">
-                      <div className="account-order-top">
-                        <div>
-                          <span className="badge-pss">{prj.projectNumber}</span>
-                          <strong style={{ marginLeft: '0.75rem' }}>
-                            {prj.serviceType} — {prj.customerName} ({prj.propertyLocation})
-                          </strong>
-                        </div>
-                        <span className="badge-dark">
-                          Progress: {prj.overallProgressPercent}% • {prj.status}
-                        </span>
-                      </div>
-
-                      <div className="pdp-pss-schedule-list" style={{ marginTop: '1rem' }}>
-                        {prj.milestones.map((m) => (
-                          <div key={m.id} className="pdp-pss-schedule-item" style={{ alignItems: 'center' }}>
-                            <span>
-                              <strong>0{m.stepNumber}. {m.title}</strong> ({m.status} • {m.completionPercent}%)
-                            </span>
-                            <div style={{ display: 'flex', gap: '0.4rem' }}>
-                              <button
-                                type="button"
-                                className="btn-outline-dark"
-                                style={{ minHeight: '30px', padding: '0.2rem 0.6rem', fontSize: '0.68rem' }}
-                                onClick={() =>
-                                  handleUpdateProjectMilestone(prj.id, m.id, 'IN_PROGRESS')
-                                }
-                              >
-                                In Progress
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-gold"
-                                style={{ minHeight: '30px', padding: '0.2rem 0.6rem', fontSize: '0.68rem' }}
-                                onClick={() =>
-                                  handleUpdateProjectMilestone(prj.id, m.id, 'COMPLETED')
-                                }
-                              >
-                                ✓ Complete
-                              </button>
+                  {/* MODULE 4: ORDERS, DELIVERIES & INSTALMENT APPROVALS */}
+                  {activeModule === 'orders' && (
+                    <div className="account-orders-list">
+                      {orders.map((ord) => (
+                        <article key={ord.id} className="account-order-card">
+                          <div className="account-order-top">
+                            <div>
+                              <span className="badge-pss">{ord.orderNumber}</span>
+                              <strong style={{ marginLeft: '0.75rem' }}>
+                                {ord.customerName} ({ord.customerPhone})
+                              </strong>
+                              <span className="order-date">
+                                • {ord.deliveryAddress}, {ord.city}, {ord.state}
+                              </span>
+                            </div>
+                            <div className="account-order-statuses">
+                              <span className="badge-dark">Order: {ord.orderStatus}</span>
+                              <span className="badge-ivory">Payment: {ord.paymentStatus}</span>
+                              {ord.hasPaySmallSmall && (
+                                <span className="badge-gold-outline">
+                                  Credit: {ord.instalmentApprovalStatus}
+                                </span>
+                              )}
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              )}
 
-              {/* MODULE 8: CUSTOMERS, TESTIMONIALS & PROMOTIONAL BANNERS */}
-              {activeModule === 'marketing' && (
-                <div className="pss-studio-grid">
-                  <div className="checkout-panel">
-                    <h3>Registered Customer Accounts ({customers.length})</h3>
-                    <div className="pdp-specs-list" style={{ marginBottom: '2rem' }}>
-                      {customers.map((c) => (
-                        <div key={c.id} className="pdp-spec-row">
-                          <span>
-                            <strong>{c.name}</strong> ({c.email} • {c.phone})
-                          </span>
-                          <strong>{c.role}</strong>
-                        </div>
+                          <div className="account-order-footer" style={{ marginTop: '1rem' }}>
+                            <div className="account-order-totals">
+                              <span>Contract: <strong>{formatNaira(ord.totalOrderValue)}</strong></span>
+                              <span>Verified Paid: <strong style={{ color: '#15803d' }}>{formatNaira(ord.amountPaidVerified)}</strong></span>
+                              <span>Balance: <strong className="gold-text">{formatNaira(ord.remainingBalance)}</strong></span>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                              {ord.hasPaySmallSmall && (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="btn-gold"
+                                    style={{ minHeight: '36px', padding: '0.4rem 0.9rem', fontSize: '0.72rem' }}
+                                    onClick={() =>
+                                      handleUpdateOrderStatus(ord.id, {
+                                        instalmentApprovalStatus: 'APPROVED',
+                                      })
+                                    }
+                                  >
+                                    ✓ Approve Instalment
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="compare-remove-tag"
+                                    onClick={() =>
+                                      handleUpdateOrderStatus(ord.id, {
+                                        instalmentApprovalStatus: 'REJECTED',
+                                      })
+                                    }
+                                  >
+                                    Reject Credit
+                                  </button>
+                                </>
+                              )}
+
+                              <select
+                                className="shop-select"
+                                value={ord.orderStatus}
+                                onChange={(e) =>
+                                  handleUpdateOrderStatus(ord.id, { orderStatus: e.target.value })
+                                }
+                              >
+                                <option value="PENDING_VERIFICATION">Pending Verification</option>
+                                <option value="IN_PRODUCTION">In Workshop Production</option>
+                                <option value="READY_FOR_DELIVERY">Ready for Delivery</option>
+                                <option value="DELIVERED">Delivered &amp; Installed</option>
+                                <option value="CANCELLED">Cancelled</option>
+                              </select>
+
+                              <Link
+                                href={`/checkout/success?order=${encodeURIComponent(ord.orderNumber)}`}
+                                className="btn-outline-dark"
+                                style={{ minHeight: '36px', padding: '0.4rem 0.9rem', fontSize: '0.72rem' }}
+                              >
+                                Invoice / Receipt
+                              </Link>
+                            </div>
+                          </div>
+                        </article>
                       ))}
                     </div>
+                  )}
 
-                    <h3>Create Promotional Discount Code</h3>
-                    <form onSubmit={handleAddPromo}>
-                      <div className="form-row-2">
-                        <div className="form-group">
-                          <label className="form-label dark-label">Promo Code</label>
-                          <input
-                            type="text"
-                            className="checkout-input"
-                            value={newPromoCode}
-                            onChange={(e) => setNewPromoCode(e.target.value)}
-                            placeholder="e.g. LAGOSLUXE10"
-                            required
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label dark-label">Discount (%)</label>
-                          <input
-                            type="number"
-                            className="checkout-input"
-                            value={newPromoVal}
-                            onChange={(e) => setNewPromoVal(Number(e.target.value))}
-                            required
-                          />
+                  {/* MODULE 5: PAYMENT VERIFICATION & RECEIPT GENERATOR */}
+                  {activeModule === 'payments' && (
+                    <div className="pss-studio-grid">
+                      <div className="checkout-panel">
+                        <h3>Record &amp; Verify Offline Corporate Bank Transfer</h3>
+                        <form onSubmit={handleRecordAndVerifyOfflinePayment}>
+                          <div className="form-group">
+                            <label className="form-label dark-label">Order Number *</label>
+                            <input
+                              type="text"
+                              className="checkout-input"
+                              value={manualPayOrderNum}
+                              onChange={(e) => setManualPayOrderNum(e.target.value)}
+                              required
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label dark-label">Verified Amount Received (₦) *</label>
+                            <input
+                              type="number"
+                              className="checkout-input"
+                              value={manualPayAmount}
+                              onChange={(e) => setManualPayAmount(Number(e.target.value))}
+                              required
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label dark-label">Bank NIP Session ID / Reference</label>
+                            <input
+                              type="text"
+                              className="checkout-input"
+                              value={manualPayRef}
+                              onChange={(e) => setManualPayRef(e.target.value)}
+                              placeholder="e.g. 000014261123094821"
+                            />
+                          </div>
+                          <button type="submit" className="btn-gold" style={{ width: '100%' }}>
+                            Record, Verify &amp; Issue Official Receipt
+                          </button>
+                        </form>
+                      </div>
+
+                      <div className="checkout-panel">
+                        <h3>All Payment Submissions ({payments.length})</h3>
+                        <div className="admin-scroll-list">
+                          {payments.map((pay) => (
+                            <div key={pay.id} className="admin-list-item">
+                              <div style={{ flex: 1 }}>
+                                <strong>
+                                  {pay.orderNumber} — {formatNaira(pay.amount)}
+                                </strong>
+                                <div style={{ fontSize: '0.78rem', color: '#57534e' }}>
+                                  {pay.label} • {pay.paymentMethod} • Ref: {pay.paymentReference}
+                                  {pay.receiptNumber ? ` • Receipt: ${pay.receiptNumber}` : ''}
+                                </div>
+                              </div>
+                              <div>
+                                {pay.status === 'VERIFIED' ? (
+                                  <span className="badge-pss">VERIFIED</span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="btn-gold"
+                                    style={{ minHeight: '34px', padding: '0.35rem 0.85rem', fontSize: '0.72rem' }}
+                                    onClick={() => handleVerifyPayment(pay.id)}
+                                  >
+                                    ✓ Verify &amp; Issue Receipt
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                      <button type="submit" className="btn-gold">
-                        + Activate Promo Code
-                      </button>
-                    </form>
-                  </div>
+                    </div>
+                  )}
 
-                  <div className="checkout-panel">
-                    <h3>Publish Customer Testimonial &amp; Banner</h3>
-                    <form onSubmit={handleAddTestimonial} style={{ marginBottom: '2rem' }}>
-                      <div className="form-row-2">
-                        <div className="form-group">
-                          <label className="form-label dark-label">Client Name *</label>
-                          <input
-                            type="text"
-                            className="checkout-input"
-                            value={newTestClient}
-                            onChange={(e) => setNewTestClient(e.target.value)}
-                            placeholder="e.g. Alhaji & Hajiya Bello"
-                            required
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label dark-label">Location</label>
-                          <input
-                            type="text"
-                            className="checkout-input"
-                            value={newTestLocation}
-                            onChange={(e) => setNewTestLocation(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label dark-label">Client Endorsement Quote *</label>
-                        <textarea
-                          className="checkout-input"
-                          rows={2}
-                          value={newTestQuote}
-                          onChange={(e) => setNewTestQuote(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <button type="submit" className="btn-gold">
-                        + Publish Testimonial
-                      </button>
-                    </form>
+                  {/* MODULE 6: CUSTOM FURNITURE REQUESTS & QUOTATION SENDER */}
+                  {activeModule === 'custom' && (
+                    <div className="account-orders-list">
+                      {quotingEnquiry && (
+                        <form onSubmit={handleSendQuotation} className="checkout-pss-notice">
+                          <h4>
+                            Send Official Quotation to {quotingEnquiry.customerName} (
+                            {quotingEnquiry.enquiryNumber})
+                          </h4>
+                          <div className="form-row-2" style={{ marginTop: '0.75rem' }}>
+                            <div className="form-group">
+                              <label className="form-label">Specification Line Item</label>
+                              <input
+                                type="text"
+                                className="form-input"
+                                value={quoteItemDesc}
+                                onChange={(e) => setQuoteItemDesc(e.target.value)}
+                                required
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label className="form-label">Quoted Price (₦)</label>
+                              <input
+                                type="number"
+                                className="form-input"
+                                value={quoteItemPrice}
+                                onChange={(e) => setQuoteItemPrice(Number(e.target.value))}
+                                required
+                              />
+                            </div>
+                          </div>
+                          <div className="form-row-2">
+                            <div className="form-group">
+                              <label className="form-label">White-Glove Delivery Fee (₦)</label>
+                              <input
+                                type="number"
+                                className="form-input"
+                                value={quoteDeliveryFee}
+                                onChange={(e) => setQuoteDeliveryFee(Number(e.target.value))}
+                                required
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label className="form-label">Estimated Lead Time</label>
+                              <input
+                                type="text"
+                                className="form-input"
+                                value={quoteLeadTime}
+                                onChange={(e) => setQuoteLeadTime(e.target.value)}
+                                required
+                              />
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.75rem' }}>
+                            <button type="submit" className="btn-gold">
+                              Transmit Quotation to Customer Dashboard
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-outline-gold"
+                              onClick={() => setQuotingEnquiry(null)}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      )}
 
-                    <h4>Active Testimonials ({testimonials.length})</h4>
-                    <div className="pdp-specs-list">
-                      {testimonials.map((t) => (
-                        <div key={t.id} className="pdp-spec-row">
-                          <span>&ldquo;{t.quote.slice(0, 70)}...&rdquo;</span>
-                          <strong>{t.clientName}</strong>
-                        </div>
+                      {customEnquiries.map((enq) => (
+                        <article key={enq.id} className="account-order-card">
+                          <div className="account-order-top">
+                            <div>
+                              <span className="badge-pss">{enq.enquiryNumber}</span>
+                              <strong style={{ marginLeft: '0.75rem' }}>
+                                {enq.category} — {enq.customerName} ({enq.customerPhone})
+                              </strong>
+                            </div>
+                            <span className="badge-dark">{enq.status.replace(/_/g, ' ')}</span>
+                          </div>
+                          <p style={{ fontSize: '0.88rem', color: '#57534e', margin: '0.75rem 0' }}>
+                            <strong>Measurements:</strong> {enq.measurements} |{' '}
+                            <strong>Materials:</strong> {enq.preferredMaterials} |{' '}
+                            <strong>Finish:</strong> {enq.colorsAndFinishing} |{' '}
+                            <strong>Location:</strong> {enq.location}
+                            <br />
+                            <strong>Brief:</strong> {enq.requirementsDescription}
+                          </p>
+                          <div style={{ display: 'flex', gap: '0.75rem' }}>
+                            <button
+                              type="button"
+                              className="btn-gold"
+                              onClick={() => {
+                                setQuotingEnquiry(enq);
+                                setQuoteItemDesc(
+                                  `Bespoke ${enq.category} (${enq.measurements} • ${enq.preferredMaterials})`
+                                );
+                              }}
+                            >
+                              Prepare &amp; Send Official Quotation
+                            </button>
+                            <a
+                              href={getWhatsAppUrl(
+                                `Hello ${enq.customerName}, this is CAF Interiors regarding your Custom Furniture Request ${enq.enquiryNumber}.`
+                              )}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn-outline-dark"
+                            >
+                              WhatsApp Client
+                            </a>
+                          </div>
+                        </article>
                       ))}
                     </div>
-                  </div>
-                </div>
-              )}
+                  )}
+
+                  {/* MODULE 7: INTERIOR DESIGN PROJECTS & MILESTONES */}
+                  {activeModule === 'projects' && (
+                    <div className="account-orders-list">
+                      {interiorProjects.map((prj) => (
+                        <article key={prj.id} className="account-order-card">
+                          <div className="account-order-top">
+                            <div>
+                              <span className="badge-pss">{prj.projectNumber}</span>
+                              <strong style={{ marginLeft: '0.75rem' }}>
+                                {prj.serviceType} — {prj.customerName} ({prj.propertyLocation})
+                              </strong>
+                            </div>
+                            <span className="badge-dark">
+                              Progress: {prj.overallProgressPercent}% • {prj.status}
+                            </span>
+                          </div>
+
+                          <div className="pdp-pss-schedule-list" style={{ marginTop: '1rem' }}>
+                            {prj.milestones.map((m) => (
+                              <div key={m.id} className="pdp-pss-schedule-item" style={{ alignItems: 'center' }}>
+                                <span>
+                                  <strong>0{m.stepNumber}. {m.title}</strong> ({m.status} • {m.completionPercent}%)
+                                </span>
+                                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                  <button
+                                    type="button"
+                                    className="btn-outline-dark"
+                                    style={{ minHeight: '30px', padding: '0.2rem 0.6rem', fontSize: '0.68rem' }}
+                                    onClick={() =>
+                                      handleUpdateProjectMilestone(prj.id, m.id, 'IN_PROGRESS')
+                                    }
+                                  >
+                                    In Progress
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn-gold"
+                                    style={{ minHeight: '30px', padding: '0.2rem 0.6rem', fontSize: '0.68rem' }}
+                                    onClick={() =>
+                                      handleUpdateProjectMilestone(prj.id, m.id, 'COMPLETED')
+                                    }
+                                  >
+                                    ✓ Complete
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* MODULE 8: CUSTOMERS, TESTIMONIALS & PROMOTIONAL BANNERS */}
+                  {activeModule === 'marketing' && (
+                    <div className="pss-studio-grid">
+                      <div className="checkout-panel">
+                        <h3>Registered Customer Accounts ({customers.length})</h3>
+                        <div className="pdp-specs-list" style={{ marginBottom: '2rem' }}>
+                          {customers.map((c) => (
+                            <div key={c.id} className="pdp-spec-row">
+                              <span>
+                                <strong>{c.name}</strong> ({c.email} • {c.phone})
+                              </span>
+                              <strong>{c.role}</strong>
+                            </div>
+                          ))}
+                        </div>
+
+                        <h3>Create Promotional Discount Code</h3>
+                        <form onSubmit={handleAddPromo}>
+                          <div className="form-row-2">
+                            <div className="form-group">
+                              <label className="form-label dark-label">Promo Code</label>
+                              <input
+                                type="text"
+                                className="checkout-input"
+                                value={newPromoCode}
+                                onChange={(e) => setNewPromoCode(e.target.value)}
+                                placeholder="e.g. LAGOSLUXE10"
+                                required
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label className="form-label dark-label">Discount (%)</label>
+                              <input
+                                type="number"
+                                className="checkout-input"
+                                value={newPromoVal}
+                                onChange={(e) => setNewPromoVal(Number(e.target.value))}
+                                required
+                              />
+                            </div>
+                          </div>
+                          <button type="submit" className="btn-gold">
+                            + Activate Promo Code
+                          </button>
+                        </form>
+                      </div>
+
+                      <div className="checkout-panel">
+                        <h3>Publish Customer Testimonial &amp; Banner</h3>
+                        <form onSubmit={handleAddTestimonial} style={{ marginBottom: '2rem' }}>
+                          <div className="form-row-2">
+                            <div className="form-group">
+                              <label className="form-label dark-label">Client Name *</label>
+                              <input
+                                type="text"
+                                className="checkout-input"
+                                value={newTestClient}
+                                onChange={(e) => setNewTestClient(e.target.value)}
+                                placeholder="e.g. Alhaji & Hajiya Bello"
+                                required
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label className="form-label dark-label">Location</label>
+                              <input
+                                type="text"
+                                className="checkout-input"
+                                value={newTestLocation}
+                                onChange={(e) => setNewTestLocation(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label dark-label">Client Endorsement Quote *</label>
+                            <textarea
+                              className="checkout-input"
+                              rows={2}
+                              value={newTestQuote}
+                              onChange={(e) => setNewTestQuote(e.target.value)}
+                              required
+                            />
+                          </div>
+                          <button type="submit" className="btn-gold">
+                            + Publish Testimonial
+                          </button>
+                        </form>
+
+                        <h4>Active Testimonials ({testimonials.length})</h4>
+                        <div className="pdp-specs-list">
+                          {testimonials.map((t) => (
+                            <div key={t.id} className="pdp-spec-row">
+                              <span>&ldquo;{t.quote.slice(0, 70)}...&rdquo;</span>
+                              <strong>{t.clientName}</strong>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>

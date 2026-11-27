@@ -6,15 +6,40 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import BrandLogo from '@/components/BrandLogo';
-import { FURNITURE_CATEGORIES, PRODUCTS_CATALOG } from '@/lib/catalog-data';
 import { useMarketplace } from '@/context/MarketplaceContext';
+import { Category, Product } from '@/types';
+
+function matchesDepartment(product: Product, category: Category | undefined, selectedSlug: string): boolean {
+  if (selectedSlug === 'all') return true;
+  const normalizedTarget = selectedSlug.toLowerCase().trim();
+  if (category) {
+    return (
+      product.categorySlug?.toLowerCase().trim() === category.slug.toLowerCase().trim() ||
+      product.categoryId === category.id ||
+      product.categoryName?.toLowerCase().trim() === category.name.toLowerCase().trim()
+    );
+  }
+  return (
+    product.categorySlug?.toLowerCase().trim() === normalizedTarget ||
+    product.categoryId === selectedSlug ||
+    product.categoryName?.toLowerCase().trim() === normalizedTarget
+  );
+}
 
 function ShopMarketplaceContent() {
   const searchParams = useSearchParams();
   const initialCat = searchParams.get('category') || 'all';
   const initialQuery = searchParams.get('search') || '';
 
-  const { compareIds, setCompareOpen, openCustomModal } = useMarketplace();
+  const {
+    catalogProducts,
+    catalogCategories,
+    catalogLoading,
+    refreshCatalog,
+    compareIds,
+    setCompareOpen,
+    openCustomModal,
+  } = useMarketplace();
 
   const [selectedCategory, setSelectedCategory] = useState<string>(initialCat);
   const [searchQuery, setSearchQuery] = useState<string>(initialQuery);
@@ -24,14 +49,26 @@ function ShopMarketplaceContent() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState<boolean>(false);
 
   useEffect(() => {
+    refreshCatalog();
+  }, [refreshCatalog]);
+
+  useEffect(() => {
     const catParam = searchParams.get('category');
     const qParam = searchParams.get('search');
     if (catParam) setSelectedCategory(catParam);
+    else setSelectedCategory('all');
     if (qParam !== null) setSearchQuery(qParam);
   }, [searchParams]);
 
-  const filteredProducts = PRODUCTS_CATALOG.filter((p) => {
-    if (selectedCategory !== 'all' && p.categorySlug !== selectedCategory) {
+  const activeCategoryObj = catalogCategories.find(
+    (c) =>
+      c.slug.toLowerCase() === selectedCategory.toLowerCase() ||
+      c.id === selectedCategory ||
+      c.name.toLowerCase() === selectedCategory.toLowerCase()
+  );
+
+  const filteredProducts = catalogProducts.filter((p) => {
+    if (selectedCategory !== 'all' && !matchesDepartment(p, activeCategoryObj, selectedCategory)) {
       return false;
     }
     if (paySmallSmallOnly && !p.paySmallSmall.eligible) {
@@ -65,7 +102,8 @@ function ShopMarketplaceContent() {
     return Number(b.isFeatured) - Number(a.isFeatured);
   });
 
-  const activeCategoryObj = FURNITURE_CATEGORIES.find((c) => c.slug === selectedCategory);
+  const getDepartmentLiveCount = (cat: Category) =>
+    catalogProducts.filter((p) => matchesDepartment(p, cat, cat.slug)).length;
 
   return (
     <main className="shop-page-main">
@@ -79,7 +117,7 @@ function ShopMarketplaceContent() {
           <p className="shop-hero-sub">
             {activeCategoryObj
               ? activeCategoryObj.description
-              : `Explore our ${FURNITURE_CATEGORIES.length} handcrafted furniture and interior design decor departments. Pay outright or spread your investment with Pay Small Small.`}
+              : `Explore our ${catalogCategories.length} handcrafted furniture and interior design decor departments. Pay outright or spread your investment with Pay Small Small.`}
           </p>
         </div>
       </section>
@@ -93,16 +131,16 @@ function ShopMarketplaceContent() {
               className={`cat-scroll-pill ${selectedCategory === 'all' ? 'active' : ''}`}
               onClick={() => setSelectedCategory('all')}
             >
-              All ({PRODUCTS_CATALOG.length})
+              All ({catalogProducts.length})
             </button>
-            {FURNITURE_CATEGORIES.map((cat) => (
+            {catalogCategories.map((cat) => (
               <button
                 key={cat.id}
                 type="button"
                 className={`cat-scroll-pill ${selectedCategory === cat.slug ? 'active' : ''}`}
                 onClick={() => setSelectedCategory(cat.slug)}
               >
-                {cat.name}
+                {cat.name} ({getDepartmentLiveCount(cat)})
               </button>
             ))}
           </div>
@@ -139,7 +177,7 @@ function ShopMarketplaceContent() {
                 onClick={() => setMobileSidebarOpen((prev) => !prev)}
                 aria-expanded={mobileSidebarOpen}
               >
-                ☰ {mobileSidebarOpen ? 'Hide Departments' : `All ${FURNITURE_CATEGORIES.length} Departments`}
+                ☰ {mobileSidebarOpen ? 'Hide Departments' : `All ${catalogCategories.length} Departments`}
               </button>
 
               <label className="pss-filter-toggle">
@@ -179,14 +217,14 @@ function ShopMarketplaceContent() {
           </div>
 
           <div className="shop-layout-grid">
-            {/* Sidebar: All 15 Categories (Collapsible on mobile/tablet) */}
+            {/* Sidebar: All Categories (Collapsible on mobile/tablet) */}
             <aside
               id="categories"
               className={`shop-sidebar ${mobileSidebarOpen ? 'mobile-open' : ''}`}
             >
               <div className="sidebar-box">
                 <h3 className="sidebar-title">
-                  Departments ({FURNITURE_CATEGORIES.length})
+                  Departments ({catalogCategories.length})
                 </h3>
                 <div className="sidebar-cat-list">
                   <button
@@ -198,23 +236,26 @@ function ShopMarketplaceContent() {
                     }}
                   >
                     <span>All Luxury Collections</span>
-                    <span className="count">{PRODUCTS_CATALOG.length}</span>
+                    <span className="count">{catalogProducts.length}</span>
                   </button>
 
-                  {FURNITURE_CATEGORIES.map((cat) => (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      className={`sidebar-cat-btn ${selectedCategory === cat.slug ? 'active' : ''}`}
-                      onClick={() => {
-                        setSelectedCategory(cat.slug);
-                        setMobileSidebarOpen(false);
-                      }}
-                    >
-                      <span>{cat.name}</span>
-                      <span className="count">{cat.productCount}</span>
-                    </button>
-                  ))}
+                  {catalogCategories.map((cat) => {
+                    const count = getDepartmentLiveCount(cat);
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        className={`sidebar-cat-btn ${selectedCategory === cat.slug ? 'active' : ''}`}
+                        onClick={() => {
+                          setSelectedCategory(cat.slug);
+                          setMobileSidebarOpen(false);
+                        }}
+                      >
+                        <span>{cat.name}</span>
+                        <span className="count">{count}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -256,12 +297,21 @@ function ShopMarketplaceContent() {
                 )}
               </div>
 
-              {filteredProducts.length === 0 ? (
+              {catalogLoading ? (
                 <div className="shop-empty-box">
-                  <h3>No matching furniture pieces found</h3>
+                  <h3>Loading CAF Interiors Catalog...</h3>
+                </div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="shop-empty-box">
+                  <h3>
+                    {activeCategoryObj
+                      ? `No published products currently in ${activeCategoryObj.name}`
+                      : 'No matching furniture pieces found'}
+                  </h3>
                   <p style={{ marginTop: '0.5rem', color: '#57534e' }}>
-                    Try resetting your search filters, or commission our bespoke workshop to craft
-                    your exact specification.
+                    {catalogProducts.length === 0
+                      ? 'The catalog currently has no published products, or all items have been removed by the administrator. You can still commission a custom furniture piece below.'
+                      : 'Try viewing all departments, resetting your search filters, or commissioning our bespoke workshop to craft your exact specification.'}
                   </p>
                   <div
                     style={{

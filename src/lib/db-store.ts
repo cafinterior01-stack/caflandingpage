@@ -590,22 +590,81 @@ const DEFAULT_DB: DatabaseSchema = {
 
 let memoryCache: DatabaseSchema | null = null;
 
+export function matchesProductCategory(product: Product, category: Category | string): boolean {
+  const target =
+    typeof category === 'string'
+      ? category.toLowerCase().trim()
+      : category.slug.toLowerCase().trim();
+  const catId = typeof category === 'string' ? category : category.id;
+  const catName =
+    typeof category === 'string'
+      ? category.toLowerCase().trim()
+      : category.name.toLowerCase().trim();
+
+  return (
+    product.categorySlug?.toLowerCase().trim() === target ||
+    product.categoryId === catId ||
+    product.categoryName?.toLowerCase().trim() === catName
+  );
+}
+
+export function computeCategoriesWithLiveCounts(
+  categories: Category[],
+  products: Product[]
+): Category[] {
+  return categories.map((cat) => {
+    const liveCount = products.filter((p) => matchesProductCategory(p, cat)).length;
+    return {
+      ...cat,
+      productCount: liveCount,
+    };
+  });
+}
+
 export function readDb(): DatabaseSchema {
-  if (memoryCache) return memoryCache;
+  if (memoryCache) {
+    const liveProducts = Array.isArray(memoryCache.products) ? memoryCache.products : [];
+    const baseCategories = Array.isArray(memoryCache.categories)
+      ? memoryCache.categories
+      : JSON.parse(JSON.stringify(FURNITURE_CATEGORIES));
+    memoryCache.categories = computeCategoriesWithLiveCounts(baseCategories, liveProducts);
+    return memoryCache;
+  }
   try {
     if (fs.existsSync(DATA_FILE_PATH)) {
       const raw = fs.readFileSync(DATA_FILE_PATH, 'utf-8');
       const parsed = JSON.parse(raw) as Partial<DatabaseSchema>;
-      const existingProdIds = new Set((parsed.products || []).map((p) => p.id));
-      const mergedProducts = [
-        ...(parsed.products || []),
-        ...PRODUCTS_CATALOG.filter((p) => !existingProdIds.has(p.id)),
-      ];
-      const existingCatIds = new Set((parsed.categories || []).map((c) => c.id));
-      const mergedCategories = [
-        ...(parsed.categories || []),
-        ...FURNITURE_CATEGORIES.filter((c) => !existingCatIds.has(c.id)),
-      ];
+      const catalogMap = new Map(PRODUCTS_CATALOG.map((p) => [p.id, p]));
+
+      // Respect the persisted products array as the authoritative source of truth (including when all products are deleted -> [])
+      const rawProducts = Array.isArray(parsed.products)
+        ? parsed.products
+        : JSON.parse(JSON.stringify(PRODUCTS_CATALOG));
+
+      const syncedProducts: Product[] = rawProducts.map((p: Product) => {
+        const canonical = catalogMap.get(p.id);
+        if (canonical) {
+          const hasAdminCustomPhoto =
+            Array.isArray(p.images) &&
+            p.images.some((u) => u.startsWith('data:image/') || !u.includes('images.unsplash.com'));
+          return {
+            ...p,
+            images: hasAdminCustomPhoto ? p.images : canonical.images,
+          };
+        }
+        return p;
+      });
+
+      const rawCategories: Category[] =
+        Array.isArray(parsed.categories) && parsed.categories.length > 0
+          ? parsed.categories
+          : JSON.parse(JSON.stringify(FURNITURE_CATEGORIES));
+
+      const categoriesWithLiveCounts = computeCategoriesWithLiveCounts(
+        rawCategories,
+        syncedProducts
+      );
+
       memoryCache = {
         users: parsed.users || DEFAULT_DB.users,
         orders: parsed.orders || DEFAULT_DB.orders,
@@ -616,8 +675,8 @@ export function readDb(): DatabaseSchema {
         customEnquiries: parsed.customEnquiries || DEFAULT_DB.customEnquiries,
         quotations: parsed.quotations || DEFAULT_DB.quotations,
         interiorProjects: parsed.interiorProjects || DEFAULT_DB.interiorProjects,
-        products: mergedProducts.length > 0 ? mergedProducts : JSON.parse(JSON.stringify(PRODUCTS_CATALOG)),
-        categories: mergedCategories.length > 0 ? mergedCategories : JSON.parse(JSON.stringify(FURNITURE_CATEGORIES)),
+        products: syncedProducts,
+        categories: categoriesWithLiveCounts,
         testimonials: parsed.testimonials || JSON.parse(JSON.stringify(CUSTOMER_TESTIMONIALS)),
         promotionalBanner:
           parsed.promotionalBanner ||
@@ -628,10 +687,15 @@ export function readDb(): DatabaseSchema {
   } catch {
     // Fallback to default in serverless/read-only environments
   }
+  const initialProducts: Product[] = JSON.parse(JSON.stringify(PRODUCTS_CATALOG));
+  const initialCategories: Category[] = computeCategoriesWithLiveCounts(
+    JSON.parse(JSON.stringify(FURNITURE_CATEGORIES)),
+    initialProducts
+  );
   memoryCache = {
     ...JSON.parse(JSON.stringify(DEFAULT_DB)),
-    products: JSON.parse(JSON.stringify(PRODUCTS_CATALOG)),
-    categories: JSON.parse(JSON.stringify(FURNITURE_CATEGORIES)),
+    products: initialProducts,
+    categories: initialCategories,
     testimonials: JSON.parse(JSON.stringify(CUSTOMER_TESTIMONIALS)),
     promotionalBanner:
       'Pay Small Small Available: Flexible 2–6 Month Instalments on Eligible Luxury Furniture',
@@ -641,6 +705,11 @@ export function readDb(): DatabaseSchema {
 }
 
 export function saveDb(data: DatabaseSchema): void {
+  const liveProducts = Array.isArray(data.products) ? data.products : [];
+  const baseCategories = Array.isArray(data.categories)
+    ? data.categories
+    : JSON.parse(JSON.stringify(FURNITURE_CATEGORIES));
+  data.categories = computeCategoriesWithLiveCounts(baseCategories, liveProducts);
   memoryCache = data;
   try {
     const dir = path.dirname(DATA_FILE_PATH);

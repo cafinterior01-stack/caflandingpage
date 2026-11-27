@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import BrandLogo from '@/components/BrandLogo';
 import { useMarketplace } from '@/context/MarketplaceContext';
-import { FURNITURE_CATEGORIES, PRODUCTS_CATALOG } from '@/lib/catalog-data';
 import { formatNaira, getWhatsAppUrl } from '@/lib/format';
 
 export default function Navbar() {
@@ -13,6 +12,8 @@ export default function Navbar() {
   const pathname = usePathname();
   const {
     user,
+    catalogProducts,
+    catalogCategories,
     cart,
     cartOpen,
     setCartOpen,
@@ -91,12 +92,12 @@ export default function Navbar() {
 
   const liveSearchResults =
     searchQuery.trim().length > 1
-      ? PRODUCTS_CATALOG.filter(
-          (p) =>
-            p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            p.categoryName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            p.shortDescription.toLowerCase().includes(searchQuery.toLowerCase())
-        ).slice(0, 5)
+      ? catalogProducts.filter(
+        (p) =>
+          p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          p.categoryName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          p.shortDescription.toLowerCase().includes(searchQuery.toLowerCase())
+      ).slice(0, 5)
       : [];
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -186,7 +187,7 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
                 <div className="mega-dropdown">
                   <div className="mega-dropdown-header">
                     <div>
-                      <span className="mega-eyebrow">{FURNITURE_CATEGORIES.length} Curated Departments</span>
+                      <span className="mega-eyebrow">{catalogCategories.length} Curated Departments</span>
                       <h4>CAF Luxury Furniture &amp; Decor Marketplace</h4>
                     </div>
                     <Link href="/shop" className="mega-view-all" onClick={() => setCatDropdownOpen(false)}>
@@ -194,7 +195,7 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
                     </Link>
                   </div>
                   <div className="mega-categories-grid">
-                    {FURNITURE_CATEGORIES.map((cat) => (
+                    {catalogCategories.map((cat) => (
                       <Link
                         key={cat.id}
                         href={`/shop?category=${cat.slug}`}
@@ -204,7 +205,9 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
                         <img src={cat.image} alt={cat.name} className="mega-cat-thumb" loading="lazy" />
                         <div>
                           <div className="mega-cat-name">{cat.name}</div>
-                          <div className="mega-cat-count">{cat.productCount} Pieces</div>
+                          <div className="mega-cat-count">
+                            {cat.productCount} {cat.productCount === 1 ? 'Piece' : 'Pieces'}
+                          </div>
                         </div>
                       </Link>
                     ))}
@@ -668,11 +671,10 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
                       {comparedProducts.map((prod) => (
                         <td key={prod.id}>
                           {prod.paySmallSmall.eligible
-                            ? `Eligible (${
-                                prod.paySmallSmall.fixedDepositAmount
-                                  ? `${formatNaira(prod.paySmallSmall.fixedDepositAmount)} Deposit`
-                                  : `${Math.round(prod.paySmallSmall.depositPercentage)}% Deposit`
-                              } • Up to ${Math.max(...prod.paySmallSmall.allowedDurationsMonths)} Months)`
+                            ? `Eligible (${prod.paySmallSmall.fixedDepositAmount
+                              ? `${formatNaira(prod.paySmallSmall.fixedDepositAmount)} Deposit`
+                              : `${Math.round(prod.paySmallSmall.depositPercentage)}% Deposit`
+                            } • Up to ${Math.max(...prod.paySmallSmall.allowedDurationsMonths)} Months)`
                             : 'Direct Purchase Only'}
                         </td>
                       ))}
@@ -750,7 +752,7 @@ ${customModalTarget?.product ? `• Reference Product: ${customModalTarget.produ
                     value={customCategory}
                     onChange={(e) => setCustomCategory(e.target.value)}
                   >
-                    {FURNITURE_CATEGORIES.map((c) => (
+                    {catalogCategories.map((c) => (
                       <option key={c.id} value={c.name}>
                         {c.name}
                       </option>

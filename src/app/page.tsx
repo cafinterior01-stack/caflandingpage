@@ -6,8 +6,6 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import {
-  FURNITURE_CATEGORIES,
-  PRODUCTS_CATALOG,
   INTERIOR_DESIGN_SERVICES,
   COMPLETED_PROJECTS,
   CUSTOMER_TESTIMONIALS,
@@ -16,24 +14,33 @@ import { formatNaira, calculatePaySmallSmall, getWhatsAppUrl } from '@/lib/forma
 import { useMarketplace } from '@/context/MarketplaceContext';
 
 export default function HomePage() {
-  const { addToCart, setCartOpen, openCustomModal, showToast } = useMarketplace();
+  const {
+    catalogProducts,
+    catalogCategories,
+    addToCart,
+    setCartOpen,
+    openCustomModal,
+    showToast,
+  } = useMarketplace();
 
   // Homepage Product Showcase Tabs
   const [activeProductTab, setActiveProductTab] = useState<'bestsellers' | 'new' | 'offers'>('bestsellers');
 
-  // Interactive Pay Small Small Simulator State (Defaulting to Luxury 6x6 Upholstered Bed @ ₦1,500,000)
-  const eligibleProducts = PRODUCTS_CATALOG.filter((p) => p.paySmallSmall.eligible);
+  // Interactive Pay Small Small Simulator State
+  const eligibleProducts = catalogProducts.filter((p) => p.paySmallSmall.eligible);
   const [selectedPssProductId, setSelectedPssProductId] = useState<string>('prod-1');
   const selectedPssProduct =
-    eligibleProducts.find((p) => p.id === selectedPssProductId) || eligibleProducts[0];
+    eligibleProducts.find((p) => p.id === selectedPssProductId) || eligibleProducts[0] || null;
   const [selectedPssMonths, setSelectedPssMonths] = useState<number>(4);
 
-  const pssCalculation = calculatePaySmallSmall(
-    selectedPssProduct.price,
-    selectedPssMonths,
-    selectedPssProduct.paySmallSmall.depositPercentage,
-    selectedPssProduct.paySmallSmall.fixedDepositAmount
-  );
+  const pssCalculation = selectedPssProduct
+    ? calculatePaySmallSmall(
+        selectedPssProduct.price,
+        selectedPssMonths,
+        selectedPssProduct.paySmallSmall.depositPercentage,
+        selectedPssProduct.paySmallSmall.fixedDepositAmount
+      )
+    : calculatePaySmallSmall(1500000, selectedPssMonths, 33.3333, 500000);
 
   // Interior Design Service Category Filter
   const [serviceFilter, setServiceFilter] = useState<string>('All');
@@ -54,13 +61,19 @@ export default function HomePage() {
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [newsletterSubscribed, setNewsletterSubscribed] = useState(false);
 
-  const displayedTabProducts = PRODUCTS_CATALOG.filter((p) => {
-    if (activeProductTab === 'bestsellers') return p.isBestSeller && p.categorySlug !== 'interior-design-decor';
-    if (activeProductTab === 'new') return p.isNewArrival && p.categorySlug !== 'interior-design-decor';
-    return p.isExclusiveOffer && p.categorySlug !== 'interior-design-decor';
-  }).slice(0, 6);
+  const nonDecorProducts = catalogProducts.filter(
+    (p) => p.categorySlug !== 'interior-design-decor'
+  );
+  const tabFilteredProducts = nonDecorProducts.filter((p) => {
+    if (activeProductTab === 'bestsellers') return p.isBestSeller;
+    if (activeProductTab === 'new') return p.isNewArrival;
+    return p.isExclusiveOffer;
+  });
+  const displayedTabProducts = (
+    tabFilteredProducts.length > 0 ? tabFilteredProducts : nonDecorProducts
+  ).slice(0, 6);
 
-  const interiorDecorProducts = PRODUCTS_CATALOG.filter(
+  const interiorDecorProducts = catalogProducts.filter(
     (p) => p.categorySlug === 'interior-design-decor' || p.categorySlug === 'mirrors-and-lighting'
   );
 
@@ -186,7 +199,7 @@ export default function HomePage() {
             </div>
 
             <div className="categories-bento-grid">
-              {FURNITURE_CATEGORIES.map((cat) => (
+              {catalogCategories.map((cat) => (
                 <Link
                   key={cat.id}
                   href={`/shop?category=${cat.slug}`}
@@ -194,7 +207,9 @@ export default function HomePage() {
                 >
                   <img src={cat.image} alt={cat.name} loading="lazy" />
                   <div className="category-bento-overlay">
-                    <span className="category-bento-count">{cat.productCount} Designs</span>
+                    <span className="category-bento-count">
+                      {cat.productCount} {cat.productCount === 1 ? 'Design' : 'Designs'}
+                    </span>
                     <h3 className="category-bento-title">{cat.name}</h3>
                     <p className="category-bento-desc">{cat.description}</p>
                     <span className="category-bento-cta">Explore Collection &rarr;</span>
@@ -249,11 +264,20 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="products-grid-3col">
-              {displayedTabProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
+            {displayedTabProducts.length === 0 ? (
+              <div className="shop-empty-box" style={{ margin: '1.5rem 0' }}>
+                <h3>No signature furniture pieces currently published</h3>
+                <p style={{ marginTop: '0.5rem', color: '#57534e' }}>
+                  New handcrafted pieces added in the CAF Interiors Administration Portal will appear here automatically.
+                </p>
+              </div>
+            ) : (
+              <div className="products-grid-3col">
+                {displayedTabProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            )}
 
             <div className="showcase-footer-cta">
               <Link href="/shop" className="btn-gold">
@@ -399,33 +423,39 @@ export default function HomePage() {
                   <label htmlFor="pssProductSelect" className="form-label">
                     1. Select Eligible Product
                   </label>
-                  <select
-                    id="pssProductSelect"
-                    className="form-select"
-                    value={selectedPssProduct.id}
-                    onChange={(e) => {
-                      const nextProd = eligibleProducts.find((p) => p.id === e.target.value);
-                      setSelectedPssProductId(e.target.value);
-                      if (
-                        nextProd &&
-                        !nextProd.paySmallSmall.allowedDurationsMonths.includes(selectedPssMonths)
-                      ) {
-                        setSelectedPssMonths(nextProd.paySmallSmall.allowedDurationsMonths[0]);
-                      }
-                    }}
-                  >
-                    {eligibleProducts.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} — {formatNaira(p.price)}
-                      </option>
-                    ))}
-                  </select>
+                  {selectedPssProduct ? (
+                    <select
+                      id="pssProductSelect"
+                      className="form-select"
+                      value={selectedPssProduct.id}
+                      onChange={(e) => {
+                        const nextProd = eligibleProducts.find((p) => p.id === e.target.value);
+                        setSelectedPssProductId(e.target.value);
+                        if (
+                          nextProd &&
+                          !nextProd.paySmallSmall.allowedDurationsMonths.includes(selectedPssMonths)
+                        ) {
+                          setSelectedPssMonths(nextProd.paySmallSmall.allowedDurationsMonths[0]);
+                        }
+                      }}
+                    >
+                      {eligibleProducts.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} — {formatNaira(p.price)}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="form-select" style={{ opacity: 0.85 }}>
+                      Reference Plan — ₦1,500,000 Luxury Furniture Suite
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-group">
                   <label className="form-label">2. Choose Approved Duration</label>
                   <div className="pss-duration-pills">
-                    {selectedPssProduct.paySmallSmall.allowedDurationsMonths.map((months) => (
+                    {(selectedPssProduct?.paySmallSmall.allowedDurationsMonths || [2, 3, 4, 6]).map((months) => (
                       <button
                         key={months}
                         type="button"
@@ -473,26 +503,34 @@ export default function HomePage() {
                 </div>
 
                 <div className="pss-calc-actions">
-                  <button
-                    type="button"
-                    className="btn-gold"
-                    style={{ width: '100%' }}
-                    onClick={() => {
-                      addToCart(selectedPssProduct, {
-                        paymentPlan: 'PAY_SMALL_SMALL',
-                        instalmentMonths: selectedPssMonths,
-                      });
-                      setCartOpen(true);
-                    }}
-                  >
-                    Apply for This Plan ({formatNaira(pssCalculation.initialDeposit)} Initial Deposit)
-                  </button>
-                  <Link
-                    href={`/product/${selectedPssProduct.slug}`}
-                    className="pss-view-product-link"
-                  >
-                    Inspect Full Product Details &rarr;
-                  </Link>
+                  {selectedPssProduct ? (
+                    <>
+                      <button
+                        type="button"
+                        className="btn-gold"
+                        style={{ width: '100%' }}
+                        onClick={() => {
+                          addToCart(selectedPssProduct, {
+                            paymentPlan: 'PAY_SMALL_SMALL',
+                            instalmentMonths: selectedPssMonths,
+                          });
+                          setCartOpen(true);
+                        }}
+                      >
+                        Apply for This Plan ({formatNaira(pssCalculation.initialDeposit)} Initial Deposit)
+                      </button>
+                      <Link
+                        href={`/product/${selectedPssProduct.slug}`}
+                        className="pss-view-product-link"
+                      >
+                        Inspect Full Product Details &rarr;
+                      </Link>
+                    </>
+                  ) : (
+                    <Link href="/pay-small-small" className="btn-gold" style={{ width: '100%', textAlign: 'center' }}>
+                      Explore Pay Small Small Financing &rarr;
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>

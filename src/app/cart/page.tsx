@@ -10,6 +10,7 @@ import { formatNaira, getWhatsAppUrl } from '@/lib/format';
 
 export default function CartPage() {
   const {
+    catalogProducts,
     cart,
     removeFromCart,
     updateQuantity,
@@ -93,8 +94,10 @@ export default function CartPage() {
               {/* Left Column: Cart Items with Live Payment Plan Switcher */}
               <div className="cart-items-column">
                 {cart.map((item, idx) => {
-                  const catalogProduct = PRODUCTS_CATALOG.find((p) => p.id === item.productId);
-                  const isEligible = catalogProduct?.paySmallSmall.eligible ?? false;
+                  const catalogProduct =
+                    catalogProducts.find((p) => p.id === item.productId) ||
+                    PRODUCTS_CATALOG.find((p) => p.id === item.productId);
+                  const isEligible = catalogProduct?.paySmallSmall.eligible ?? item.paymentPlan === 'PAY_SMALL_SMALL';
                   const allowedMonths = catalogProduct?.paySmallSmall.allowedDurationsMonths || [2, 3, 4, 6];
 
                   const lineFullPrice = item.unitPrice * item.quantity;

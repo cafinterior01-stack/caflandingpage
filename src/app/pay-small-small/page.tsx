@@ -18,12 +18,13 @@ import {
 
 export default function PaySmallSmallPage() {
   const router = useRouter();
-  const { user, addToCart, showToast } = useMarketplace();
+  const { user, catalogProducts, addToCart, showToast } = useMarketplace();
+  const activeCatalog = catalogProducts.length > 0 ? catalogProducts : PRODUCTS_CATALOG;
 
   // 1. Calculator State (Defaults to Luxury 6x6 Upholstered Bed @ ₦1,500,000)
   const [selectedProductId, setSelectedProductId] = useState<string>('prod-1');
   const selectedProduct =
-    PRODUCTS_CATALOG.find((p) => p.id === selectedProductId) || PRODUCTS_CATALOG[0];
+    activeCatalog.find((p) => p.id === selectedProductId) || activeCatalog[0];
   const [selectedSizeIdx, setSelectedSizeIdx] = useState<number>(0);
   const [selectedDuration, setSelectedDuration] = useState<number>(4);
 
@@ -32,13 +33,13 @@ export default function PaySmallSmallPage() {
 
   const calculation = selectedProduct.paySmallSmall.eligible
     ? calculatePaySmallSmall(
-        currentFullPrice,
-        selectedDuration,
-        selectedProduct.paySmallSmall.depositPercentage,
-        sizeOption?.priceAdjustment === 0
-          ? selectedProduct.paySmallSmall.fixedDepositAmount
-          : undefined
-      )
+      currentFullPrice,
+      selectedDuration,
+      selectedProduct.paySmallSmall.depositPercentage,
+      sizeOption?.priceAdjustment === 0
+        ? selectedProduct.paySmallSmall.fixedDepositAmount
+        : undefined
+    )
     : null;
 
   // 2. Live Order & Instalment Tracker State
@@ -203,7 +204,7 @@ export default function PaySmallSmallPage() {
       ? Math.min(100, Math.round((trackedOrder.amountPaidVerified / trackedOrder.totalOrderValue) * 100))
       : 0;
 
-  const eligibleProducts = PRODUCTS_CATALOG.filter((p) => p.paySmallSmall.eligible);
+  const eligibleProducts = catalogProducts.filter((p) => p.paySmallSmall.eligible);
 
   return (
     <>
@@ -261,7 +262,7 @@ export default function PaySmallSmallPage() {
                     className="checkout-input"
                     value={selectedProduct.id}
                     onChange={(e) => {
-                      const next = PRODUCTS_CATALOG.find((p) => p.id === e.target.value);
+                      const next = activeCatalog.find((p) => p.id === e.target.value);
                       setSelectedProductId(e.target.value);
                       setSelectedSizeIdx(0);
                       if (
@@ -273,7 +274,7 @@ export default function PaySmallSmallPage() {
                       }
                     }}
                   >
-                    {PRODUCTS_CATALOG.map((p) => (
+                    {activeCatalog.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name} — {formatNaira(p.price)}{' '}
                         {p.paySmallSmall.eligible ? '(✓ Pay Small Small Eligible)' : '(Direct Purchase Only)'}
@@ -635,8 +636,8 @@ export default function PaySmallSmallPage() {
                         {trackedOrder.remainingBalance === 0
                           ? '✓ All Instalments Fully Paid & Verified'
                           : paySubmitting
-                          ? 'Recording Payment Submission...'
-                          : `Submit ${formatNaira(payAmount)} Instalment Payment`}
+                            ? 'Recording Payment Submission...'
+                            : `Submit ${formatNaira(payAmount)} Instalment Payment`}
                       </button>
                     </form>
                   </div>
@@ -660,9 +661,8 @@ export default function PaySmallSmallPage() {
 
                           <div className="ledger-actions">
                             <span
-                              className={`ledger-status-pill ${
-                                pay.status === 'VERIFIED' ? 'verified' : 'pending'
-                              }`}
+                              className={`ledger-status-pill ${pay.status === 'VERIFIED' ? 'verified' : 'pending'
+                                }`}
                             >
                               {pay.status.replace(/_/g, ' ')}
                             </span>

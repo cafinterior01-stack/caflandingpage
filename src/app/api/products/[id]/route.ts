@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PRODUCTS_CATALOG } from '@/lib/catalog-data';
+import { FURNITURE_CATEGORIES } from '@/lib/catalog-data';
 import { readDb, saveDb, parseSessionToken } from '@/lib/db-store';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   const db = readDb();
-  const catalog = db.products || PRODUCTS_CATALOG;
+  const catalog = Array.isArray(db.products) ? db.products : [];
   const product = catalog.find(
     (p) => p.id === params.id || p.slug === params.id
   );
@@ -23,7 +26,14 @@ export async function GET(
     .filter((p) => p.categorySlug === product.categorySlug && p.id !== product.id)
     .slice(0, 4);
 
-  return NextResponse.json({ product, related });
+  return NextResponse.json(
+    { product, related },
+    {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      },
+    }
+  );
 }
 
 export async function PUT(
@@ -42,7 +52,7 @@ export async function PUT(
 
     const updates = await request.json();
     const db = readDb();
-    if (!db.products) db.products = [...PRODUCTS_CATALOG];
+    if (!Array.isArray(db.products)) db.products = [];
 
     const idx = db.products.findIndex(
       (p) => p.id === params.id || p.slug === params.id
@@ -52,13 +62,41 @@ export async function PUT(
     }
 
     const current = db.products[idx];
-    if (updates.name !== undefined) current.name = String(updates.name);
+    if (updates.name !== undefined && String(updates.name).trim()) {
+      current.name = String(updates.name).trim();
+    }
+    if (updates.categoryName !== undefined || updates.categorySlug !== undefined || updates.categoryId !== undefined) {
+      const categories = Array.isArray(db.categories) ? db.categories : [...FURNITURE_CATEGORIES];
+      const targetKey = String(updates.categorySlug || updates.categoryId || updates.categoryName)
+        .trim()
+        .toLowerCase();
+      const matchedCat = categories.find(
+        (c) =>
+          c.id === updates.categoryId ||
+          c.slug.toLowerCase() === targetKey ||
+          c.name.toLowerCase() === String(updates.categoryName || '').trim().toLowerCase()
+      );
+      if (matchedCat) {
+        current.categoryId = matchedCat.id;
+        current.categoryName = matchedCat.name;
+        current.categorySlug = matchedCat.slug;
+      }
+    }
     if (updates.price !== undefined) current.price = Number(updates.price);
     if (updates.originalPrice !== undefined) {
-      current.originalPrice = updates.originalPrice ? Number(updates.originalPrice) : undefined;
+      current.originalPrice =
+        updates.originalPrice && Number(updates.originalPrice) > 0
+          ? Number(updates.originalPrice)
+          : undefined;
+      current.isExclusiveOffer = Boolean(
+        current.originalPrice && current.originalPrice > current.price
+      );
     }
     if (updates.shortDescription !== undefined) {
       current.shortDescription = String(updates.shortDescription);
+    }
+    if (updates.description !== undefined) {
+      current.description = String(updates.description);
     }
     if (updates.availability !== undefined) {
       current.availability = updates.availability;
@@ -71,8 +109,14 @@ export async function PUT(
     if (updates.depositPercentage !== undefined) {
       current.paySmallSmall.depositPercentage = Number(updates.depositPercentage);
     }
-    if (Array.isArray(updates.images) && updates.images.length > 0) {
-      current.images = updates.images;
+    if (updates.dimensions !== undefined && current.sizes.length > 0) {
+      current.sizes[0] = {
+        ...current.sizes[0],
+        dimensions: String(updates.dimensions),
+      };
+    }
+    if (Array.isArray(updates.images)) {
+      current.images = updates.images.map((img: string) => String(img).trim()).filter(Boolean);
     }
 
     db.products[idx] = current;
@@ -80,6 +124,7 @@ export async function PUT(
 
     return NextResponse.json({
       product: current,
+      categories: db.categories,
       message: `Updated "${current.name}".`,
     });
   } catch {
@@ -101,7 +146,7 @@ export async function DELETE(
   }
 
   const db = readDb();
-  if (!db.products) db.products = [...PRODUCTS_CATALOG];
+  if (!Array.isArray(db.products)) db.products = [];
 
   const initialLen = db.products.length;
   db.products = db.products.filter(
@@ -113,5 +158,9 @@ export async function DELETE(
   }
 
   saveDb(db);
-  return NextResponse.json({ message: 'Product removed from catalog.' });
+  return NextResponse.json({
+    message: 'Product removed from catalog.',
+    remainingCount: db.products.length,
+    categories: db.categories,
+  });
 }

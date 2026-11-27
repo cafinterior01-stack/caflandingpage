@@ -1,8 +1,8 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { CartItem, Product } from '@/types';
-import { PRODUCTS_CATALOG } from '@/lib/catalog-data';
+import { CartItem, Product, Category } from '@/types';
+import { FURNITURE_CATEGORIES } from '@/lib/catalog-data';
 import { calculatePaySmallSmall } from '@/lib/format';
 
 export interface AuthenticatedUser {
@@ -26,6 +26,10 @@ interface MarketplaceContextType {
   authLoading: boolean;
   refreshUser: () => Promise<void>;
   logout: () => Promise<void>;
+  catalogProducts: Product[];
+  catalogCategories: Category[];
+  catalogLoading: boolean;
+  refreshCatalog: () => Promise<void>;
   cart: CartItem[];
   cartOpen: boolean;
   setCartOpen: (open: boolean) => void;
@@ -70,6 +74,11 @@ const MarketplaceContext = createContext<MarketplaceContextType | undefined>(und
 export function MarketplaceProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
+  const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
+  const [catalogCategories, setCatalogCategories] = useState<Category[]>(() =>
+    FURNITURE_CATEGORIES.map((c) => ({ ...c, productCount: 0 }))
+  );
+  const [catalogLoading, setCatalogLoading] = useState<boolean>(true);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [compareIds, setCompareIds] = useState<string[]>([]);
@@ -82,6 +91,31 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     setTimeout(() => {
       setToastMessage((prev) => (prev === msg ? null : prev));
     }, 3800);
+  }, []);
+
+  const refreshCatalog = useCallback(async () => {
+    try {
+      const res = await fetch('/api/products', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache',
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.products)) {
+          setCatalogProducts(data.products);
+        }
+        if (Array.isArray(data.categories)) {
+          setCatalogCategories(data.categories);
+        }
+      }
+    } catch {
+      // ignore network error
+    } finally {
+      setCatalogLoading(false);
+    }
   }, []);
 
   const refreshUser = useCallback(async () => {
@@ -113,6 +147,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     refreshUser();
+    refreshCatalog();
     try {
       const savedCart = localStorage.getItem('caf_luxury_cart');
       if (savedCart) {
@@ -125,7 +160,12 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     } catch {
       // ignore storage errors
     }
-  }, [refreshUser]);
+    const onFocus = () => {
+      refreshCatalog();
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [refreshUser, refreshCatalog]);
 
   useEffect(() => {
     try {
@@ -234,7 +274,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
       const item = updated[index];
       if (!item) return prev;
 
-      const product = PRODUCTS_CATALOG.find((p) => p.id === item.productId);
+      const product = catalogProducts.find((p) => p.id === item.productId);
       if (!product) return prev;
 
       if (paymentPlan === 'PAY_SMALL_SMALL' && product.paySmallSmall.eligible) {
@@ -277,7 +317,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
       (item.paymentPlan === 'PAY_SMALL_SMALL' && item.initialDepositPerUnit
         ? item.initialDepositPerUnit
         : item.unitPrice) *
-        item.quantity,
+      item.quantity,
     0
   );
   const cartRemainingBalance = Math.max(0, cartTotalFullValue - cartPayableToday);
@@ -299,7 +339,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
 
   const clearCompare = () => setCompareIds([]);
 
-  const comparedProducts = PRODUCTS_CATALOG.filter((p) => compareIds.includes(p.id));
+  const comparedProducts = catalogProducts.filter((p) => compareIds.includes(p.id));
 
   const openCustomModal = (target?: CustomisationTarget) => {
     setCustomModalTarget(target || {});
@@ -314,6 +354,10 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         authLoading,
         refreshUser,
         logout,
+        catalogProducts,
+        catalogCategories,
+        catalogLoading,
+        refreshCatalog,
         cart,
         cartOpen,
         setCartOpen,

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import BrandLogo from '@/components/BrandLogo';
-import { FURNITURE_CATEGORIES } from '@/lib/catalog-data';
+import { useMarketplace } from '@/context/MarketplaceContext';
 import { getWhatsAppUrl } from '@/lib/format';
 
 const WHATSAPP_CHANNELS = [
@@ -36,6 +36,7 @@ const WHATSAPP_CHANNELS = [
 
 export default function Footer() {
   const [conciergeOpen, setConciergeOpen] = useState(false);
+  const { catalogCategories } = useMarketplace();
 
   return (
     <footer className="site-footer">
@@ -56,13 +57,13 @@ export default function Footer() {
           <div>
             <h3 className="footer-col-title">Furniture Marketplace</h3>
             <nav className="footer-links" aria-label="Furniture Categories">
-              {FURNITURE_CATEGORIES.slice(0, 7).map((cat) => (
+              {catalogCategories.slice(0, 7).map((cat) => (
                 <Link key={cat.id} href={`/shop?category=${cat.slug}`}>
                   {cat.name}
                 </Link>
               ))}
               <Link href="/shop" className="gold-text">
-                View All 14 Categories &rarr;
+                View All {catalogCategories.length} Categories &rarr;
               </Link>
             </nav>
           </div>

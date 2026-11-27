@@ -18,7 +18,8 @@ const MATERIAL_PRESETS = [
 ];
 
 export default function CustomFurniturePage() {
-  const { user, showToast } = useMarketplace();
+  const { user, catalogCategories, showToast } = useMarketplace();
+  const activeCategories = catalogCategories.length > 0 ? catalogCategories : FURNITURE_CATEGORIES;
 
   // Form State
   const [customerName, setCustomerName] = useState('');
@@ -285,7 +286,7 @@ export default function CustomFurniturePage() {
                         value={category}
                         onChange={(e) => setCategory(e.target.value)}
                       >
-                        {FURNITURE_CATEGORIES.map((c) => (
+                        {activeCategories.map((c) => (
                           <option key={c.id} value={c.name}>
                             {c.name}
                           </option>

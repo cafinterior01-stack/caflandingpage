@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { Product } from '@/types';
 import { formatNaira, calculatePaySmallSmall } from '@/lib/format';
@@ -13,15 +13,17 @@ interface ProductCardProps {
 export default function ProductCard({ product }: ProductCardProps) {
   const { addToCart, setCartOpen, compareIds, toggleCompare, openCustomModal } = useMarketplace();
   const isCompared = compareIds.includes(product.id);
+  const [primaryImgError, setPrimaryImgError] = useState(false);
+  const [secondaryImgError, setSecondaryImgError] = useState(false);
 
   const defaultMonths = product.paySmallSmall.allowedDurationsMonths[0] || 3;
   const instalmentPreview = product.paySmallSmall.eligible
     ? calculatePaySmallSmall(
-        product.price,
-        defaultMonths,
-        product.paySmallSmall.depositPercentage,
-        product.paySmallSmall.fixedDepositAmount
-      )
+      product.price,
+      defaultMonths,
+      product.paySmallSmall.depositPercentage,
+      product.paySmallSmall.fixedDepositAmount
+    )
     : null;
 
   const handleBuyNow = () => {
@@ -46,19 +48,48 @@ export default function ProductCard({ product }: ProductCardProps) {
     <article className="luxury-product-card">
       <div className="product-card-media">
         <Link href={`/product/${product.slug}`} className="product-card-img-link">
-          <img
-            src={product.images[0]}
-            alt={product.name}
-            loading="lazy"
-            className="product-img-primary"
-          />
-          {product.images[1] && (
-            <img
-              src={product.images[1]}
-              alt={`${product.name} alternate view`}
-              loading="lazy"
-              className="product-img-secondary"
-            />
+          {product.images?.[0] && !primaryImgError ? (
+            <>
+              <img
+                src={product.images[0]}
+                alt={product.name}
+                loading="lazy"
+                className="product-img-primary"
+                onError={() => setPrimaryImgError(true)}
+              />
+              {product.images[1] && !secondaryImgError && (
+                <img
+                  src={product.images[1]}
+                  alt={`${product.name} alternate view`}
+                  loading="lazy"
+                  className="product-img-secondary"
+                  onError={() => setSecondaryImgError(true)}
+                />
+              )}
+            </>
+          ) : (
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                minHeight: '260px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'linear-gradient(145deg, #161615 0%, #22211e 100%)',
+                color: '#d4af37',
+                padding: '1.5rem',
+                textAlign: 'center',
+              }}
+            >
+              <span style={{ fontSize: '0.72rem', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+                CAF Interiors Atelier
+              </span>
+              <strong style={{ color: '#f5f2eb', fontSize: '0.88rem', marginTop: '0.35rem' }}>
+                {product.name}
+              </strong>
+            </div>
           )}
         </Link>
 

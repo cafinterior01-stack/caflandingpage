@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PRODUCTS_CATALOG, FURNITURE_CATEGORIES } from '@/lib/catalog-data';
-import { readDb, saveDb, parseSessionToken } from '@/lib/db-store';
+import { FURNITURE_CATEGORIES } from '@/lib/catalog-data';
+import {
+  readDb,
+  saveDb,
+  parseSessionToken,
+  matchesProductCategory,
+  computeCategoriesWithLiveCounts,
+} from '@/lib/db-store';
 import { Product } from '@/types';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -13,10 +22,23 @@ export async function GET(request: NextRequest) {
   const maxPrice = Number(searchParams.get('maxPrice') || 0);
 
   const db = readDb();
-  let results = [...(db.products || PRODUCTS_CATALOG)];
+  const allProducts = Array.isArray(db.products) ? db.products : [];
+  const allCategories = computeCategoriesWithLiveCounts(
+    Array.isArray(db.categories) ? db.categories : FURNITURE_CATEGORIES,
+    allProducts
+  );
+  let results = [...allProducts];
 
   if (category && category !== 'all') {
-    results = results.filter((p) => p.categorySlug === category || p.categoryId === category);
+    const matchedCatObj = allCategories.find(
+      (c) =>
+        c.slug.toLowerCase() === category.toLowerCase() ||
+        c.id === category ||
+        c.name.toLowerCase() === category.toLowerCase()
+    );
+    results = results.filter((p) =>
+      matchedCatObj ? matchesProductCategory(p, matchedCatObj) : matchesProductCategory(p, category)
+    );
   }
 
   if (paySmallSmallOnly) {
@@ -54,11 +76,19 @@ export async function GET(request: NextRequest) {
     results.sort((a, b) => Number(b.isFeatured) - Number(a.isFeatured));
   }
 
-  return NextResponse.json({
-    products: results,
-    categories: db.categories || FURNITURE_CATEGORIES,
-    total: results.length,
-  });
+  return NextResponse.json(
+    {
+      products: results,
+      allProductsCount: allProducts.length,
+      categories: allCategories,
+      total: results.length,
+    },
+    {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      },
+    }
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -76,6 +106,8 @@ export async function POST(request: NextRequest) {
     const {
       name,
       categoryName = 'Living Room Furniture',
+      categoryId,
+      categorySlug,
       price,
       originalPrice,
       shortDescription,
@@ -88,25 +120,62 @@ export async function POST(request: NextRequest) {
       frameMaterial = 'Kiln-Dried Seasoned Nigerian Mahogany',
       upholsteryMaterial = 'Italian Performance Velvet / Bouclé',
       dimensions = 'Standard Luxury Specification',
+      isFeatured = true,
+      isBestSeller = true,
+      isNewArrival = true,
     } = body;
 
-    if (!name || !price) {
+    if (!name || price === undefined || price === null || Number(price) <= 0) {
       return NextResponse.json(
-        { error: 'Product name and price in Naira are required.' },
+        { error: 'Product name and a valid price in Naira are required.' },
         { status: 400 }
       );
     }
 
     const db = readDb();
-    const categories = db.categories || FURNITURE_CATEGORIES;
-    const matchedCat =
-      categories.find((c) => c.name === categoryName || c.slug === categoryName) ||
-      categories[0];
+    const categories = Array.isArray(db.categories) ? db.categories : [...FURNITURE_CATEGORIES];
+    const targetCatKey = String(categorySlug || categoryId || categoryName).trim().toLowerCase();
+    let matchedCat = categories.find(
+      (c) =>
+        c.id === categoryId ||
+        c.slug.toLowerCase() === targetCatKey ||
+        c.name.toLowerCase() === String(categoryName).trim().toLowerCase()
+    );
+
+    // If the administrator enters/selects a new category name not yet in db.categories, create it automatically
+    if (!matchedCat && categoryName) {
+      const autoSlug = String(categoryName)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+      matchedCat = {
+        id: `cat-${Date.now()}`,
+        name: String(categoryName).trim(),
+        slug: autoSlug,
+        description: `Curated ${String(categoryName).trim()} collection by CAF Interiors.`,
+        image:
+          Array.isArray(images) && images[0]
+            ? String(images[0])
+            : 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=900&q=80',
+        productCount: 0,
+        featured: false,
+      };
+      categories.push(matchedCat);
+      db.categories = categories;
+    }
+
+    if (!matchedCat) {
+      matchedCat = categories[0];
+    }
 
     const slug = `${String(name)
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '')}-${Date.now().toString().slice(-4)}`;
+
+    const sanitizedImages = Array.isArray(images)
+      ? images.map((img) => String(img).trim()).filter(Boolean)
+      : [];
 
     const newProduct: Product = {
       id: `prod-${Date.now()}`,
@@ -122,13 +191,8 @@ export async function POST(request: NextRequest) {
         shortDescription ||
         `Engineered for supreme comfort and architectural luxury. Built by CAF Interiors Master Artisans.`,
       price: Number(price),
-      originalPrice: originalPrice ? Number(originalPrice) : undefined,
-      images:
-        Array.isArray(images) && images.length > 0
-          ? images
-          : [
-            'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=85',
-          ],
+      originalPrice: originalPrice && Number(originalPrice) > 0 ? Number(originalPrice) : undefined,
+      images: sanitizedImages,
       sizes: [
         {
           label: 'Standard Specification',
@@ -151,9 +215,9 @@ export async function POST(request: NextRequest) {
       availabilityLabel:
         availability === 'IN_STOCK' ? 'In Stock' : 'Made to Measure',
       estimatedDelivery: String(estimatedDelivery),
-      isFeatured: true,
-      isBestSeller: false,
-      isNewArrival: true,
+      isFeatured: Boolean(isFeatured),
+      isBestSeller: Boolean(isBestSeller),
+      isNewArrival: Boolean(isNewArrival),
       isExclusiveOffer: Boolean(originalPrice && Number(originalPrice) > Number(price)),
       paySmallSmall: {
         eligible: Boolean(paySmallSmallEligible),
@@ -167,14 +231,18 @@ export async function POST(request: NextRequest) {
       sku: `CAF-${matchedCat.slug.slice(0, 3).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`,
     };
 
-    if (!db.products) {
-      db.products = [...PRODUCTS_CATALOG];
+    if (!Array.isArray(db.products)) {
+      db.products = [];
     }
     db.products.unshift(newProduct);
     saveDb(db);
 
     return NextResponse.json(
-      { product: newProduct, message: `Product "${newProduct.name}" added to marketplace.` },
+      {
+        product: newProduct,
+        categories: db.categories,
+        message: `Product "${newProduct.name}" added to ${matchedCat.name}.`,
+      },
       { status: 201 }
     );
   } catch {

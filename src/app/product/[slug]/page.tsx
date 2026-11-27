@@ -1,22 +1,103 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
-import { PRODUCTS_CATALOG } from '@/lib/catalog-data';
 import { formatNaira, calculatePaySmallSmall, getWhatsAppUrl } from '@/lib/format';
 import { useMarketplace } from '@/context/MarketplaceContext';
+import { Product } from '@/types';
 
 export default function ProductDetailPage({ params }: { params: { slug: string } }) {
-  const product = PRODUCTS_CATALOG.find(
+  const {
+    catalogProducts,
+    catalogLoading,
+    addToCart,
+    setCartOpen,
+    compareIds,
+    toggleCompare,
+    openCustomModal,
+  } = useMarketplace();
+
+  const contextProduct = catalogProducts.find(
     (p) => p.slug === params.slug || p.id === params.slug
   );
 
-  const { addToCart, setCartOpen, compareIds, toggleCompare, openCustomModal } = useMarketplace();
+  const [fetchedProduct, setFetchedProduct] = useState<Product | null>(null);
+  const [fetching, setFetching] = useState<boolean>(true);
+  const [notFound, setNotFound] = useState<boolean>(false);
 
-  if (!product) {
+  const product = fetchedProduct || contextProduct || null;
+
+  const [activeImage, setActiveImage] = useState<string>('');
+  const [imgError, setImgError] = useState<boolean>(false);
+  const [selectedSizeIndex, setSelectedSizeIndex] = useState<number>(0);
+  const [selectedColorIndex, setSelectedColorIndex] = useState<number>(0);
+  const [quantity, setQuantity] = useState<number>(1);
+  const [paymentMode, setPaymentMode] = useState<'FULL_PAYMENT' | 'PAY_SMALL_SMALL'>('FULL_PAYMENT');
+  const [instalmentMonths, setInstalmentMonths] = useState<number>(3);
+
+  useEffect(() => {
+    let active = true;
+    setFetching(true);
+    setNotFound(false);
+    fetch(`/api/products/${encodeURIComponent(params.slug)}`, { cache: 'no-store' })
+      .then(async (res) => {
+        if (!active) return;
+        if (res.ok) {
+          const data = await res.json();
+          if (data.product) {
+            setFetchedProduct(data.product);
+            setNotFound(false);
+          } else {
+            setNotFound(true);
+          }
+        } else {
+          setFetchedProduct(null);
+          setNotFound(true);
+        }
+      })
+      .catch(() => {
+        if (active && !contextProduct) {
+          setNotFound(true);
+        }
+      })
+      .finally(() => {
+        if (active) setFetching(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [params.slug, contextProduct]);
+
+  useEffect(() => {
+    if (product) {
+      setActiveImage(product.images?.[0] || '');
+      setImgError(false);
+      setSelectedSizeIndex(0);
+      setSelectedColorIndex(0);
+      setPaymentMode(product.paySmallSmall.eligible ? 'PAY_SMALL_SMALL' : 'FULL_PAYMENT');
+      setInstalmentMonths(product.paySmallSmall.allowedDurationsMonths?.[0] || 3);
+    }
+  }, [product?.id, product?.images]);
+
+  if ((fetching || catalogLoading) && !product) {
+    return (
+      <>
+        <Navbar />
+        <main style={{ padding: '10rem 2rem 6rem', textAlign: 'center', minHeight: '70vh' }}>
+          <div className="container">
+            <span className="eyebrow">CAF Interiors Marketplace</span>
+            <h1 className="section-heading">Loading Furniture Specifications...</h1>
+          </div>
+        </main>
+        <Footer />
+      </>
+    );
+  }
+
+  if (notFound || !product) {
     return (
       <>
         <Navbar />
@@ -25,7 +106,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
             <span className="eyebrow">CAF Interiors Marketplace</span>
             <h1 className="section-heading">Product Not Found</h1>
             <p style={{ marginBottom: '2rem', color: '#57534e' }}>
-              The luxury furniture piece you are looking for may have been moved or commissioned.
+              The luxury furniture piece you are looking for may have been removed or commissioned.
             </p>
             <Link href="/shop" className="btn-gold">
               Return to Furniture Marketplace
@@ -37,17 +118,6 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
     );
   }
 
-  const [activeImage, setActiveImage] = useState<string>(product.images[0]);
-  const [selectedSizeIndex, setSelectedSizeIndex] = useState<number>(0);
-  const [selectedColorIndex, setSelectedColorIndex] = useState<number>(0);
-  const [quantity, setQuantity] = useState<number>(1);
-  const [paymentMode, setPaymentMode] = useState<'FULL_PAYMENT' | 'PAY_SMALL_SMALL'>(
-    product.paySmallSmall.eligible ? 'PAY_SMALL_SMALL' : 'FULL_PAYMENT'
-  );
-  const [instalmentMonths, setInstalmentMonths] = useState<number>(
-    product.paySmallSmall.allowedDurationsMonths[0] || 3
-  );
-
   const selectedSizeObj = product.sizes[selectedSizeIndex] || product.sizes[0];
   const selectedColorObj = product.colors[selectedColorIndex] || product.colors[0];
 
@@ -56,19 +126,19 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
 
   const pssDetails = product.paySmallSmall.eligible
     ? calculatePaySmallSmall(
-        totalFullPrice,
-        instalmentMonths,
-        product.paySmallSmall.depositPercentage,
-        selectedSizeObj?.priceAdjustment === 0 && quantity === 1
-          ? product.paySmallSmall.fixedDepositAmount
-          : undefined
-      )
+      totalFullPrice,
+      instalmentMonths,
+      product.paySmallSmall.depositPercentage,
+      selectedSizeObj?.priceAdjustment === 0 && quantity === 1
+        ? product.paySmallSmall.fixedDepositAmount
+        : undefined
+    )
     : null;
 
   const isCompared = compareIds.includes(product.id);
-  const relatedProducts = PRODUCTS_CATALOG.filter(
-    (p) => p.categorySlug === product.categorySlug && p.id !== product.id
-  ).slice(0, 3);
+  const relatedProducts = catalogProducts
+    .filter((p) => p.categorySlug === product.categorySlug && p.id !== product.id)
+    .slice(0, 3);
 
   const handleAddToBag = (openDrawerAfter = false) => {
     addToCart(product, {
@@ -106,24 +176,57 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
             {/* Left Column: Multi-Image Gallery */}
             <div className="pdp-gallery">
               <div className="pdp-primary-image-box">
-                <img src={activeImage} alt={product.name} />
+                {activeImage && !imgError ? (
+                  <img
+                    src={activeImage}
+                    alt={product.name}
+                    onError={() => setImgError(true)}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: '100%',
+                      minHeight: '380px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: '#141413',
+                      color: '#d4af37',
+                      padding: '2rem',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <strong style={{ letterSpacing: '0.12em', textTransform: 'uppercase', fontSize: '0.82rem' }}>
+                      CAF Interiors Studio Photograph Pending
+                    </strong>
+                    <span style={{ color: '#b8b3aa', fontSize: '0.8rem', marginTop: '0.4rem' }}>
+                      {product.name}
+                    </span>
+                  </div>
+                )}
                 {product.paySmallSmall.eligible && (
                   <span className="pdp-floating-badge">Pay Small Small Eligible</span>
                 )}
               </div>
 
-              <div className="pdp-thumbnails-row">
-                {product.images.map((imgUrl, idx) => (
-                  <button
-                    key={imgUrl}
-                    type="button"
-                    className={`pdp-thumb-btn ${activeImage === imgUrl ? 'active' : ''}`}
-                    onClick={() => setActiveImage(imgUrl)}
-                  >
-                    <img src={imgUrl} alt={`${product.name} view ${idx + 1}`} />
-                  </button>
-                ))}
-              </div>
+              {product.images.length > 0 && (
+                <div className="pdp-thumbnails-row">
+                  {product.images.map((imgUrl, idx) => (
+                    <button
+                      key={`${imgUrl}-${idx}`}
+                      type="button"
+                      className={`pdp-thumb-btn ${activeImage === imgUrl ? 'active' : ''}`}
+                      onClick={() => {
+                        setActiveImage(imgUrl);
+                        setImgError(false);
+                      }}
+                    >
+                      <img src={imgUrl} alt={`${product.name} view ${idx + 1}`} />
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Material & Architectural Specifications Card */}
               <div className="pdp-specs-card">
@@ -201,8 +304,8 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                         {sz.priceAdjustment === 0
                           ? 'Standard Price'
                           : sz.priceAdjustment > 0
-                          ? `+${formatNaira(sz.priceAdjustment)}`
-                          : `−${formatNaira(Math.abs(sz.priceAdjustment))}`}
+                            ? `+${formatNaira(sz.priceAdjustment)}`
+                            : `−${formatNaira(Math.abs(sz.priceAdjustment))}`}
                       </span>
                     </button>
                   ))}

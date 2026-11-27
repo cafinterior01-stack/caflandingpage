@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readDb, saveDb, parseSessionToken } from '@/lib/db-store';
+import { readDb, saveDb, parseSessionToken, computeCategoriesWithLiveCounts } from '@/lib/db-store';
 import { PRODUCTS_CATALOG, FURNITURE_CATEGORIES, CUSTOMER_TESTIMONIALS } from '@/lib/catalog-data';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   const token = request.cookies.get('caf_session')?.value;
@@ -16,8 +19,11 @@ export async function GET(request: NextRequest) {
   }
 
   const db = readDb();
-  const products = db.products || PRODUCTS_CATALOG;
-  const categories = db.categories || FURNITURE_CATEGORIES;
+  const products = Array.isArray(db.products) ? db.products : [];
+  const categories = computeCategoriesWithLiveCounts(
+    Array.isArray(db.categories) ? db.categories : FURNITURE_CATEGORIES,
+    products
+  );
   const testimonials = db.testimonials || CUSTOMER_TESTIMONIALS;
 
   const totalSalesContractValue = db.orders.reduce((sum, o) => sum + o.totalOrderValue, 0);
@@ -102,11 +108,26 @@ export async function POST(request: NextRequest) {
       if (!name) {
         return NextResponse.json({ error: 'Category name is required' }, { status: 400 });
       }
-      if (!db.categories) db.categories = [...FURNITURE_CATEGORIES];
+      if (!Array.isArray(db.categories)) db.categories = [...FURNITURE_CATEGORIES];
       const slug = String(name)
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
+      const existing = db.categories.find(
+        (c) => c.slug === slug || c.name.toLowerCase() === String(name).trim().toLowerCase()
+      );
+      if (existing) {
+        return NextResponse.json(
+          { error: `Department "${existing.name}" already exists.` },
+          { status: 400 }
+        );
+      }
+      const liveProducts = Array.isArray(db.products) ? db.products : [];
+      const matchingCount = liveProducts.filter(
+        (p) =>
+          p.categorySlug === slug ||
+          p.categoryName.toLowerCase() === String(name).trim().toLowerCase()
+      ).length;
       const newCat = {
         id: `cat-${Date.now()}`,
         name: String(name).trim(),
@@ -115,12 +136,42 @@ export async function POST(request: NextRequest) {
         image:
           image ||
           'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=900&q=80',
-        productCount: 1,
+        productCount: matchingCount,
         featured: false,
       };
       db.categories.push(newCat);
       saveDb(db);
-      return NextResponse.json({ category: newCat, message: `Category "${newCat.name}" added.` });
+      return NextResponse.json({
+        category: newCat,
+        categories: db.categories,
+        message: `Category "${newCat.name}" added.`,
+      });
+    }
+
+    // 2B. Delete Category
+    if (action === 'DELETE_CATEGORY') {
+      const { categoryId } = body;
+      if (!categoryId) {
+        return NextResponse.json({ error: 'Category ID is required' }, { status: 400 });
+      }
+      if (!Array.isArray(db.categories)) db.categories = [...FURNITURE_CATEGORIES];
+      db.categories = db.categories.filter((c) => c.id !== categoryId && c.slug !== categoryId);
+      saveDb(db);
+      return NextResponse.json({
+        categories: db.categories,
+        message: 'Department removed from marketplace.',
+      });
+    }
+
+    // 2C. Restore Default Starter Catalog (safe non-destructive helper if admin ever wants starter catalog back)
+    if (action === 'RESTORE_DEFAULT_CATALOG') {
+      db.products = JSON.parse(JSON.stringify(PRODUCTS_CATALOG));
+      saveDb(db);
+      return NextResponse.json({
+        products: db.products,
+        categories: db.categories,
+        message: `Restored ${db.products?.length || 0} default CAF Interiors catalog products.`,
+      });
     }
 
     // 3. Add Promotional Code or Update Banner
