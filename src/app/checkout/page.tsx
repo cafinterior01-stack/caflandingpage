@@ -119,15 +119,37 @@ function CheckoutFormContent() {
       });
 
       const data = await res.json();
-      if (!res.ok) {
+      if (!res.ok || !data.order) {
         showToast(data.error || 'Could not complete order.');
         setSubmitting(false);
         return;
       }
 
+      const createdOrderNumber = data.order.orderNumber;
+
+      // For Paystack and Flutterwave, initialize the server-side payment session and redirect to the hosted checkout page
+      if (paymentMethod === 'PAYSTACK' || paymentMethod === 'FLUTTERWAVE') {
+        const initRes = await fetch('/api/payments/initialize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderNumber: createdOrderNumber,
+            provider: paymentMethod,
+          }),
+        });
+        const initData = await initRes.json();
+        clearCart();
+
+        if (initRes.ok && initData.authorizationUrl) {
+          showToast(`Redirecting to ${paymentMethod} Hosted Checkout...`);
+          window.location.assign(initData.authorizationUrl);
+          return;
+        }
+      }
+
       clearCart();
-      showToast(`Order ${data.order.orderNumber} submitted!`);
-      router.push(`/checkout/success?order=${encodeURIComponent(data.order.orderNumber)}`);
+      showToast(`Order ${createdOrderNumber} submitted!`);
+      router.push(`/checkout/success?order=${encodeURIComponent(createdOrderNumber)}`);
     } catch {
       showToast('Network error while placing order.');
       setSubmitting(false);

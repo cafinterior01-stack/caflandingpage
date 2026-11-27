@@ -118,8 +118,47 @@ export default function AdminDashboardPage() {
       const data = await res.json();
       if (res.ok) {
         setAnalytics(data.analytics);
-        setProducts(data.products || []);
-        setCategories(data.categories || []);
+        let loadedProducts: Product[] = Array.isArray(data.products) ? data.products : [];
+        try {
+          const savedCustomRaw = localStorage.getItem('caf_admin_custom_products');
+          const deletedIdsRaw = localStorage.getItem('caf_admin_deleted_product_ids');
+          const deletedIds = new Set<string>(deletedIdsRaw ? JSON.parse(deletedIdsRaw) : []);
+          if (deletedIds.size > 0) {
+            loadedProducts = loadedProducts.filter((p) => !deletedIds.has(p.id));
+          }
+          if (savedCustomRaw) {
+            const savedCustom: Product[] = JSON.parse(savedCustomRaw);
+            if (Array.isArray(savedCustom) && savedCustom.length > 0) {
+              const byId = new Map<string, Product>();
+              for (const cp of savedCustom) {
+                if (cp && cp.id && !deletedIds.has(cp.id)) {
+                  byId.set(cp.id, cp);
+                }
+              }
+              for (const sp of loadedProducts) {
+                if (sp && sp.id && !byId.has(sp.id) && !deletedIds.has(sp.id)) {
+                  byId.set(sp.id, sp);
+                }
+              }
+              loadedProducts = Array.from(byId.values());
+            }
+          }
+        } catch {
+          // ignore storage errors
+        }
+        setProducts(loadedProducts);
+        const rawCats: Category[] = Array.isArray(data.categories) ? data.categories : [];
+        setCategories(
+          rawCats.map((cat) => ({
+            ...cat,
+            productCount: loadedProducts.filter(
+              (p) =>
+                p.categorySlug?.toLowerCase().trim() === cat.slug.toLowerCase().trim() ||
+                p.categoryId === cat.id ||
+                p.categoryName?.toLowerCase().trim() === cat.name.toLowerCase().trim()
+            ).length,
+          }))
+        );
         setOrders(data.orders || []);
         setPayments(data.payments || []);
         setCustomEnquiries(data.customEnquiries || []);
@@ -153,15 +192,16 @@ export default function AdminDashboardPage() {
   const handleProductPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    Array.from(files).slice(0, 3).forEach((file) => {
+    Array.from(files).slice(0, 6).forEach((file) => {
       const reader = new FileReader();
       reader.onload = () => {
         if (typeof reader.result === 'string') {
-          setProdImages((prev) => [reader.result as string, ...prev]);
+          setProdImages((prev) => [...prev, reader.result as string]);
         }
       };
       reader.readAsDataURL(file);
     });
+    e.target.value = '';
     showToast('Uploaded product photograph.');
   };
 
@@ -169,8 +209,17 @@ export default function AdminDashboardPage() {
     e.preventDefault();
     const finalImages =
       prodImageUrlInput.trim() && !prodImages.includes(prodImageUrlInput.trim())
-        ? [prodImageUrlInput.trim(), ...prodImages]
+        ? [...prodImages, prodImageUrlInput.trim()]
         : prodImages;
+
+    let existingCustomProducts: Product[] = [];
+    try {
+      const raw = localStorage.getItem('caf_admin_custom_products');
+      if (raw) existingCustomProducts = JSON.parse(raw);
+    } catch {
+      // ignore
+    }
+
     const res = await fetch('/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -185,10 +234,22 @@ export default function AdminDashboardPage() {
         paySmallSmallEligible: prodPssEligible,
         depositPercentage: prodDepositPct,
         dimensions: prodDimensions,
+        existingCustomProducts,
       }),
     });
     const data = await res.json();
-    if (res.ok) {
+    if (res.ok && data.product) {
+      try {
+        const raw = localStorage.getItem('caf_admin_custom_products');
+        const list: Product[] = raw ? JSON.parse(raw) : [];
+        const filtered = list.filter((p) => p.id !== data.product.id);
+        localStorage.setItem(
+          'caf_admin_custom_products',
+          JSON.stringify([data.product, ...filtered])
+        );
+      } catch {
+        // ignore storage quota errors
+      }
       showToast(data.message);
       setProdName('');
       setProdShortDesc('');
@@ -203,15 +264,16 @@ export default function AdminDashboardPage() {
   const handleEditProductPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    Array.from(files).slice(0, 4).forEach((file) => {
+    Array.from(files).slice(0, 6).forEach((file) => {
       const reader = new FileReader();
       reader.onload = () => {
         if (typeof reader.result === 'string') {
-          setEditProdImages((prev) => [reader.result as string, ...prev]);
+          setEditProdImages((prev) => [...prev, reader.result as string]);
         }
       };
       reader.readAsDataURL(file);
     });
+    e.target.value = '';
     showToast('Added product photograph to gallery.');
   };
 
@@ -220,7 +282,7 @@ export default function AdminDashboardPage() {
     if (!editingProduct) return;
     const finalEditImages =
       editProdImageUrlInput.trim() && !editProdImages.includes(editProdImageUrlInput.trim())
-        ? [editProdImageUrlInput.trim(), ...editProdImages]
+        ? [...editProdImages, editProdImageUrlInput.trim()]
         : editProdImages;
     const res = await fetch(`/api/products/${encodeURIComponent(editingProduct.id)}`, {
       method: 'PUT',
@@ -238,7 +300,18 @@ export default function AdminDashboardPage() {
       }),
     });
     const data = await res.json();
-    if (res.ok) {
+    if (res.ok && data.product) {
+      try {
+        const raw = localStorage.getItem('caf_admin_custom_products');
+        const list: Product[] = raw ? JSON.parse(raw) : [];
+        const filtered = list.filter((p) => p.id !== data.product.id);
+        localStorage.setItem(
+          'caf_admin_custom_products',
+          JSON.stringify([data.product, ...filtered])
+        );
+      } catch {
+        // ignore
+      }
       showToast(data.message);
       setEditingProduct(null);
       setEditProdImageUrlInput('');
@@ -252,7 +325,23 @@ export default function AdminDashboardPage() {
     const res = await fetch(`/api/products/${encodeURIComponent(productId)}`, {
       method: 'DELETE',
     });
-    if (res.ok) {
+    try {
+      const raw = localStorage.getItem('caf_admin_custom_products');
+      if (raw) {
+        const list: Product[] = JSON.parse(raw);
+        localStorage.setItem(
+          'caf_admin_custom_products',
+          JSON.stringify(list.filter((p) => p.id !== productId))
+        );
+      }
+      const delRaw = localStorage.getItem('caf_admin_deleted_product_ids');
+      const delIds = new Set<string>(delRaw ? JSON.parse(delRaw) : []);
+      delIds.add(productId);
+      localStorage.setItem('caf_admin_deleted_product_ids', JSON.stringify(Array.from(delIds)));
+    } catch {
+      // ignore
+    }
+    if (res.ok || res.status === 404) {
       if (editingProduct?.id === productId) {
         setEditingProduct(null);
       }

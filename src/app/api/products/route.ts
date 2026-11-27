@@ -168,17 +168,20 @@ export async function POST(request: NextRequest) {
       matchedCat = categories[0];
     }
 
+    const uniqueSuffix = `${Date.now().toString().slice(-5)}-${Math.random()
+      .toString(36)
+      .slice(2, 6)}`;
     const slug = `${String(name)
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '')}-${Date.now().toString().slice(-4)}`;
+      .replace(/(^-|-$)/g, '')}-${uniqueSuffix}`;
 
     const sanitizedImages = Array.isArray(images)
       ? images.map((img) => String(img).trim()).filter(Boolean)
       : [];
 
     const newProduct: Product = {
-      id: `prod-${Date.now()}`,
+      id: `prod-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       name: String(name).trim(),
       slug,
       categoryId: matchedCat.id,
@@ -234,12 +237,23 @@ export async function POST(request: NextRequest) {
     if (!Array.isArray(db.products)) {
       db.products = [];
     }
+    // Merge any existing client-tracked custom products so serverless cold-start instances never drop previously uploaded products
+    if (Array.isArray(body.existingCustomProducts)) {
+      const currentIds = new Set(db.products.map((p) => p.id));
+      for (const customProd of body.existingCustomProducts) {
+        if (customProd && customProd.id && !currentIds.has(customProd.id)) {
+          db.products.push(customProd);
+          currentIds.add(customProd.id);
+        }
+      }
+    }
     db.products.unshift(newProduct);
     saveDb(db);
 
     return NextResponse.json(
       {
         product: newProduct,
+        products: db.products,
         categories: db.categories,
         message: `Product "${newProduct.name}" added to ${matchedCat.name}.`,
       },

@@ -622,14 +622,6 @@ export function computeCategoriesWithLiveCounts(
 }
 
 export function readDb(): DatabaseSchema {
-  if (memoryCache) {
-    const liveProducts = Array.isArray(memoryCache.products) ? memoryCache.products : [];
-    const baseCategories = Array.isArray(memoryCache.categories)
-      ? memoryCache.categories
-      : JSON.parse(JSON.stringify(FURNITURE_CATEGORIES));
-    memoryCache.categories = computeCategoriesWithLiveCounts(baseCategories, liveProducts);
-    return memoryCache;
-  }
   try {
     if (fs.existsSync(DATA_FILE_PATH)) {
       const raw = fs.readFileSync(DATA_FILE_PATH, 'utf-8');
@@ -637,9 +629,18 @@ export function readDb(): DatabaseSchema {
       const catalogMap = new Map(PRODUCTS_CATALOG.map((p) => [p.id, p]));
 
       // Respect the persisted products array as the authoritative source of truth (including when all products are deleted -> [])
-      const rawProducts = Array.isArray(parsed.products)
+      let rawProducts: Product[] = Array.isArray(parsed.products)
         ? parsed.products
         : JSON.parse(JSON.stringify(PRODUCTS_CATALOG));
+
+      // If memoryCache already holds newly uploaded products in a serverless instance where fs is read-only, merge them without losing existing items
+      if (memoryCache && Array.isArray(memoryCache.products)) {
+        const diskIds = new Set(rawProducts.map((p) => p.id));
+        const memOnly = memoryCache.products.filter((p) => !diskIds.has(p.id));
+        if (memOnly.length > 0) {
+          rawProducts = [...memOnly, ...rawProducts];
+        }
+      }
 
       const syncedProducts: Product[] = rawProducts.map((p: Product) => {
         const canonical = catalogMap.get(p.id);
@@ -666,26 +667,49 @@ export function readDb(): DatabaseSchema {
       );
 
       memoryCache = {
-        users: parsed.users || DEFAULT_DB.users,
-        orders: parsed.orders || DEFAULT_DB.orders,
-        promotions: parsed.promotions || DEFAULT_DB.promotions,
-        instalmentPayments: parsed.instalmentPayments || DEFAULT_DB.instalmentPayments,
-        notifications: parsed.notifications || DEFAULT_DB.notifications,
-        paySmallSmallConfig: parsed.paySmallSmallConfig || DEFAULT_DB.paySmallSmallConfig,
-        customEnquiries: parsed.customEnquiries || DEFAULT_DB.customEnquiries,
-        quotations: parsed.quotations || DEFAULT_DB.quotations,
-        interiorProjects: parsed.interiorProjects || DEFAULT_DB.interiorProjects,
+        users: parsed.users || memoryCache?.users || DEFAULT_DB.users,
+        orders: parsed.orders || memoryCache?.orders || DEFAULT_DB.orders,
+        promotions: parsed.promotions || memoryCache?.promotions || DEFAULT_DB.promotions,
+        instalmentPayments:
+          parsed.instalmentPayments ||
+          memoryCache?.instalmentPayments ||
+          DEFAULT_DB.instalmentPayments,
+        notifications:
+          parsed.notifications || memoryCache?.notifications || DEFAULT_DB.notifications,
+        paySmallSmallConfig:
+          parsed.paySmallSmallConfig ||
+          memoryCache?.paySmallSmallConfig ||
+          DEFAULT_DB.paySmallSmallConfig,
+        customEnquiries:
+          parsed.customEnquiries || memoryCache?.customEnquiries || DEFAULT_DB.customEnquiries,
+        quotations: parsed.quotations || memoryCache?.quotations || DEFAULT_DB.quotations,
+        interiorProjects:
+          parsed.interiorProjects || memoryCache?.interiorProjects || DEFAULT_DB.interiorProjects,
         products: syncedProducts,
         categories: categoriesWithLiveCounts,
-        testimonials: parsed.testimonials || JSON.parse(JSON.stringify(CUSTOMER_TESTIMONIALS)),
+        testimonials:
+          parsed.testimonials ||
+          memoryCache?.testimonials ||
+          JSON.parse(JSON.stringify(CUSTOMER_TESTIMONIALS)),
         promotionalBanner:
           parsed.promotionalBanner ||
+          memoryCache?.promotionalBanner ||
           'Pay Small Small Available: Flexible 2–6 Month Instalments on Eligible Luxury Furniture',
       };
       return memoryCache;
     }
   } catch {
-    // Fallback to default in serverless/read-only environments
+    if (memoryCache) {
+      const liveProducts = Array.isArray(memoryCache.products) ? memoryCache.products : [];
+      const baseCategories = Array.isArray(memoryCache.categories)
+        ? memoryCache.categories
+        : JSON.parse(JSON.stringify(FURNITURE_CATEGORIES));
+      memoryCache.categories = computeCategoriesWithLiveCounts(baseCategories, liveProducts);
+      return memoryCache;
+    }
+  }
+  if (memoryCache) {
+    return memoryCache;
   }
   const initialProducts: Product[] = JSON.parse(JSON.stringify(PRODUCTS_CATALOG));
   const initialCategories: Category[] = computeCategoriesWithLiveCounts(

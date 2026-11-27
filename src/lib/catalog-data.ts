@@ -57,8 +57,8 @@ export const FURNITURE_CATEGORIES: Category[] = [
     name: 'TV Consoles',
     slug: 'tv-consoles',
     description: 'Fluted walnut media units, marble-top consoles, and full wall entertainment panelling.',
-    image: 'https://images.unsplash.com/photo-1593696140826-c58b021acf8b?auto=format&fit=crop&w=900&q=80',
-    productCount: 15,
+    image: 'https://images.unsplash.com/photo-1615874959474-d609969a20ed?auto=format&fit=crop&w=900&q=80',
+    productCount: 1,
     featured: true,
   },
   {
@@ -67,7 +67,7 @@ export const FURNITURE_CATEGORIES: Category[] = [
     slug: 'dining-furniture',
     description: '6-seater to 12-seater sintered stone, marble, and solid hardwood banquet dining suites.',
     image: 'https://images.unsplash.com/photo-1617806118233-18e1de247200?auto=format&fit=crop&w=900&q=80',
-    productCount: 19,
+    productCount: 1,
     featured: true,
   },
   {
@@ -75,8 +75,8 @@ export const FURNITURE_CATEGORIES: Category[] = [
     name: 'Kitchen Cabinets',
     slug: 'kitchen-cabinets',
     description: 'Modern waterfall kitchen islands, soft-close high-gloss & matte lacquer cabinetry.',
-    image: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=900&q=80',
-    productCount: 9,
+    image: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?auto=format&fit=crop&w=900&q=80',
+    productCount: 1,
     featured: false,
   },
   {
@@ -320,9 +320,9 @@ export const PRODUCTS_CATALOG: Product[] = [
     price: 850000,
     originalPrice: 980000,
     images: [
-      'https://images.unsplash.com/photo-1593696140826-c58b021acf8b?auto=format&fit=crop&w=1200&q=85',
-      'https://images.unsplash.com/photo-1600585152220-90363fe7e115?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1615874959474-d609969a20ed?auto=format&fit=crop&w=1200&q=85',
       'https://images.unsplash.com/photo-1509600110300-21b9d5fedeb7?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1600585152220-90363fe7e115?auto=format&fit=crop&w=1200&q=85',
     ],
     sizes: [
       { label: '220cm (Fits up to 85" TV)', dimensions: '220cm L × 45cm D × 52cm H', priceAdjustment: 0 },
@@ -474,8 +474,8 @@ export const PRODUCTS_CATALOG: Product[] = [
     originalPrice: 790000,
     images: [
       'https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1532372576444-dda954194ad0?auto=format&fit=crop&w=1200&q=85',
       'https://images.unsplash.com/photo-1565191999001-551c187427bb?auto=format&fit=crop&w=1200&q=85',
-      'https://images.unsplash.com/photo-1538688525198-9b88f6f53126?auto=format&fit=crop&w=1200&q=85',
     ],
     sizes: [
       { label: 'Dual-Tier Set (110cm + 70cm)', dimensions: '110cm Dia × 38cm H', priceAdjustment: 0 },
@@ -523,9 +523,9 @@ export const PRODUCTS_CATALOG: Product[] = [
     price: 4500000,
     originalPrice: 5100000,
     images: [
-      'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=1200&q=85',
       'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?auto=format&fit=crop&w=1200&q=85',
-      'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1600585152220-90363fe7e115?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1600566752355-35792bedcfea?auto=format&fit=crop&w=1200&q=85',
     ],
     sizes: [
       { label: 'Standard L-Kitchen + 2.4m Island', dimensions: 'Custom Fitted up to 16 Linear Meters', priceAdjustment: 0 },
@@ -1226,7 +1226,7 @@ export const INTERIOR_DESIGN_SERVICES: InteriorService[] = [
     shortDescription:
       'Bespoke culinary spaces featuring waterfall quartz islands, integrated European appliances, and concealed walk-in pantries.',
     features: ['Waterfall Quartz & Marble Islands', 'Soft-Close Modular Cabinetry', 'Task & Ambient LED Lighting'],
-    image: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=900&q=80',
+    image: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?auto=format&fit=crop&w=900&q=80',
     startingEstimate: 'From ₦2,200,000',
   },
   {
@@ -1270,7 +1270,7 @@ export const INTERIOR_DESIGN_SERVICES: InteriorService[] = [
     shortDescription:
       'Fluted hardwood slats, book-matched marble slabs, padded suede panels, and brushed brass inlay feature walls.',
     features: ['Fluted Wood & WPC Architectural Slats', 'Book-Matched Sintered Stone Walls', 'Upholstered Acoustic Wall Panels'],
-    image: 'https://images.unsplash.com/photo-1593696140826-c58b021acf8b?auto=format&fit=crop&w=900&q=80',
+    image: 'https://images.unsplash.com/photo-1615873968403-89e068629265?auto=format&fit=crop&w=900&q=80',
     startingEstimate: 'From ₦650,000',
   },
   {

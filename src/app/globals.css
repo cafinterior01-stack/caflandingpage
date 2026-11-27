@@ -2057,7 +2057,8 @@ img {
 .cart-item-img {
   width: 78px;
   height: 78px;
-  object-fit: cover;
+  object-fit: contain;
+  background: #141414;
   border: 1px solid rgba(212, 175, 55, 0.25);
   flex-shrink: 0;
 }
@@ -2236,7 +2237,8 @@ img {
 .compare-thumb {
   width: 100%;
   height: 110px;
-  object-fit: cover;
+  object-fit: contain;
+  background: #141414;
   margin-bottom: 0.5rem;
 }
 
@@ -2466,35 +2468,44 @@ img {
   height: 280px;
   overflow: hidden;
   background: #141414;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .product-card-img-link {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   height: 100%;
   position: relative;
+  padding: 0.35rem;
 }
 
 .product-card-img-link img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  transition: opacity 0.55s ease, transform 0.75s var(--transition-smooth);
+  object-fit: contain;
+  object-position: center;
+  background: #141414;
+  transition: opacity 0.45s ease;
 }
 
 .product-img-secondary {
   position: absolute;
-  inset: 0;
+  inset: 0.35rem;
+  width: calc(100% - 0.7rem);
+  height: calc(100% - 0.7rem);
   opacity: 0;
 }
 
 .luxury-product-card:hover .product-img-secondary {
   opacity: 1;
-  transform: scale(1.04);
 }
 
 .luxury-product-card:hover .product-img-primary {
-  transform: scale(1.04);
+  transform: none;
 }
 
 .product-card-badges {
@@ -3556,12 +3567,17 @@ img {
   background: var(--black-deep);
   overflow: hidden;
   margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
 }
 
 .pdp-primary-image-box img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
 }
 
 .pdp-floating-badge {
@@ -3587,7 +3603,8 @@ img {
   width: 88px;
   height: 68px;
   border: 2px solid transparent;
-  padding: 0;
+  padding: 2px;
+  background: var(--black-deep);
   cursor: pointer;
   overflow: hidden;
 }
@@ -3599,7 +3616,8 @@ img {
 .pdp-thumb-btn img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
 }
 
 .pdp-specs-card {
@@ -4048,7 +4066,8 @@ img {
 .cart-full-img {
   width: 140px;
   height: 140px;
-  object-fit: cover;
+  object-fit: contain;
+  background: #141414;
   border: 1px solid rgba(212, 175, 55, 0.25);
   flex-shrink: 0;
 }
@@ -4820,7 +4839,8 @@ img {
 .pss-selected-preview img {
   width: 96px;
   height: 96px;
-  object-fit: cover;
+  object-fit: contain;
+  background: #141414;
   flex-shrink: 0;
 }
 
@@ -5186,12 +5206,13 @@ img {
   width: 74px;
   height: 74px;
   border: 1px solid var(--gold-primary);
+  background: #141414;
 }
 
 .uploaded-thumb-item img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .uploaded-thumb-item button {
@@ -5345,7 +5366,8 @@ img {
 .admin-item-thumb {
   width: 56px;
   height: 56px;
-  object-fit: cover;
+  object-fit: contain;
+  background: #141414;
   border: 1px solid rgba(212, 175, 55, 0.35);
   flex-shrink: 0;
 }

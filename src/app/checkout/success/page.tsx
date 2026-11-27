@@ -13,6 +13,13 @@ import { useMarketplace } from '@/context/MarketplaceContext';
 function OrderSuccessContent() {
   const searchParams = useSearchParams();
   const orderParam = searchParams.get('order') || 'CAF-2026-1042';
+  const paymentCallbackStatus = searchParams.get('payment');
+  const providerParam = searchParams.get('provider');
+  const referenceParam =
+    searchParams.get('reference') || searchParams.get('trxref') || searchParams.get('tx_ref') || '';
+  const transactionIdParam = searchParams.get('transaction_id') || '';
+  const flwStatusParam = searchParams.get('status') || '';
+
   const { showToast } = useMarketplace();
 
   const [order, setOrder] = useState<OrderRecord | null>(null);
@@ -32,6 +39,73 @@ function OrderSuccessContent() {
   useEffect(() => {
     loadOrder();
   }, [loadOrder]);
+
+  // Automatically verify real Paystack / Flutterwave callback redirects server-side
+  useEffect(() => {
+    if (!referenceParam || paymentCallbackStatus === 'failed' || paymentCallbackStatus === 'cancelled') {
+      return;
+    }
+    if (flwStatusParam && flwStatusParam.toLowerCase() === 'cancelled') {
+      return;
+    }
+    if (searchParams.get('trxref') || searchParams.get('tx_ref') || transactionIdParam) {
+      fetch('/api/payments/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'VERIFY_GATEWAY_CALLBACK',
+          provider: providerParam || (transactionIdParam ? 'FLUTTERWAVE' : 'PAYSTACK'),
+          orderNumber: orderParam,
+          reference: referenceParam,
+          transactionId: transactionIdParam || undefined,
+          currency: 'NGN',
+          gatewayStatus: 'SUCCESS',
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.order) {
+            setOrder(data.order);
+            showToast(data.message);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [
+    referenceParam,
+    transactionIdParam,
+    paymentCallbackStatus,
+    flwStatusParam,
+    providerParam,
+    orderParam,
+    searchParams,
+    showToast,
+  ]);
+
+  const handleLaunchHostedGateway = async () => {
+    if (!order) return;
+    setVerifyingGateway(true);
+    try {
+      const res = await fetch('/api/payments/initialize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderNumber: order.orderNumber,
+          provider: order.paymentMethod === 'BANK_TRANSFER' ? 'PAYSTACK' : order.paymentMethod,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.authorizationUrl) {
+        window.location.assign(data.authorizationUrl);
+        return;
+      }
+      showToast(data.error || 'Unable to launch payment gateway.');
+    } catch {
+      showToast('Network error launching payment gateway.');
+    } finally {
+      setVerifyingGateway(false);
+    }
+  };
 
   const handleSimulateGatewayWebhook = async () => {
     if (!order) return;
@@ -113,6 +187,20 @@ function OrderSuccessContent() {
           </div>
         </div>
 
+        {/* Payment Outcome Alert Banner if redirected from gateway */}
+        {(paymentCallbackStatus === 'failed' || paymentCallbackStatus === 'cancelled') && (
+          <div className="auth-error-banner" style={{ margin: '1.5rem 0' }}>
+            <strong>
+              {providerParam || order.paymentMethod} Payment{' '}
+              {paymentCallbackStatus === 'cancelled' ? 'Cancelled' : 'Failed'}:
+            </strong>{' '}
+            Your transaction ({referenceParam || order.paymentReference}) was not completed. Your order{' '}
+            <strong>{order.orderNumber}</strong> is safely saved as{' '}
+            <strong>AWAITING VERIFICATION</strong> — you can retry payment below without creating a
+            duplicate order.
+          </div>
+        )}
+
         {/* Live Payment Gateway Verification Banner when awaiting verification */}
         {order.paymentStatus === 'AWAITING_VERIFICATION' && (
           <div className="checkout-pss-notice" style={{ margin: '1.5rem 0' }}>
@@ -120,12 +208,24 @@ function OrderSuccessContent() {
             <p style={{ fontSize: '0.86rem', marginBottom: '1rem' }}>
               In accordance with CAF Interiors security policy, orders remain{' '}
               <strong>AWAITING VERIFICATION</strong> until confirmed via backend payment gateway
-              webhook or administrator bank transfer confirmation.
+              verification or administrator bank transfer confirmation.
             </p>
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              {order.paymentMethod !== 'BANK_TRANSFER' && (
+                <button
+                  type="button"
+                  className="btn-gold"
+                  onClick={handleLaunchHostedGateway}
+                  disabled={verifyingGateway}
+                >
+                  {verifyingGateway
+                    ? `Opening ${order.paymentMethod} Checkout...`
+                    : `Pay ${formatNaira(order.payableTodayAmount)} on ${order.paymentMethod} Hosted Checkout`}
+                </button>
+              )}
               <button
                 type="button"
-                className="btn-gold"
+                className={order.paymentMethod === 'BANK_TRANSFER' ? 'btn-gold' : 'btn-outline-gold'}
                 onClick={handleSimulateGatewayWebhook}
                 disabled={verifyingGateway}
               >

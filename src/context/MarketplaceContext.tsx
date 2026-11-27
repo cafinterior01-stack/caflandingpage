@@ -104,12 +104,54 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
       });
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data.products)) {
-          setCatalogProducts(data.products);
+        let serverProducts: Product[] = Array.isArray(data.products) ? data.products : [];
+        let serverCategories: Category[] = Array.isArray(data.categories) ? data.categories : [];
+
+        // Reconcile with locally persisted admin product mutations so serverless cold-starts on read-only hosts never lose uploaded products
+        try {
+          const savedCustomRaw = localStorage.getItem('caf_admin_custom_products');
+          const deletedIdsRaw = localStorage.getItem('caf_admin_deleted_product_ids');
+          const deletedIds = new Set<string>(deletedIdsRaw ? JSON.parse(deletedIdsRaw) : []);
+
+          if (deletedIds.size > 0) {
+            serverProducts = serverProducts.filter((p) => !deletedIds.has(p.id));
+          }
+
+          if (savedCustomRaw) {
+            const savedCustom: Product[] = JSON.parse(savedCustomRaw);
+            if (Array.isArray(savedCustom) && savedCustom.length > 0) {
+              const byId = new Map<string, Product>();
+              // Saved custom products take precedence (includes newly uploaded or edited items)
+              for (const cp of savedCustom) {
+                if (cp && cp.id && !deletedIds.has(cp.id)) {
+                  byId.set(cp.id, cp);
+                }
+              }
+              for (const sp of serverProducts) {
+                if (sp && sp.id && !byId.has(sp.id) && !deletedIds.has(sp.id)) {
+                  byId.set(sp.id, sp);
+                }
+              }
+              serverProducts = Array.from(byId.values());
+            }
+          }
+        } catch {
+          // ignore localStorage read errors
         }
-        if (Array.isArray(data.categories)) {
-          setCatalogCategories(data.categories);
-        }
+
+        // Recompute category counts accurately from reconciled products
+        serverCategories = serverCategories.map((cat) => ({
+          ...cat,
+          productCount: serverProducts.filter(
+            (p) =>
+              p.categorySlug?.toLowerCase().trim() === cat.slug.toLowerCase().trim() ||
+              p.categoryId === cat.id ||
+              p.categoryName?.toLowerCase().trim() === cat.name.toLowerCase().trim()
+          ).length,
+        }));
+
+        setCatalogProducts(serverProducts);
+        setCatalogCategories(serverCategories);
       }
     } catch {
       // ignore network error

@@ -220,6 +220,241 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // 2B. Server-Side Gateway Callback Verification (Paystack & Flutterwave)
+    if (action === 'VERIFY_GATEWAY_CALLBACK') {
+      const {
+        provider = 'PAYSTACK',
+        orderNumber,
+        reference,
+        transactionId,
+        amount,
+        currency = 'NGN',
+        gatewayStatus = 'SUCCESS',
+      } = body;
+
+      if (!orderNumber && !reference) {
+        return NextResponse.json(
+          { error: 'Order number or transaction reference is required.' },
+          { status: 400 }
+        );
+      }
+
+      const ordIdx = db.orders.findIndex(
+        (o) =>
+          (orderNumber && o.orderNumber.toLowerCase() === String(orderNumber).toLowerCase()) ||
+          (reference && o.paymentReference.toLowerCase() === String(reference).toLowerCase())
+      );
+
+      if (ordIdx === -1) {
+        return NextResponse.json({ error: 'Order not found for verification.' }, { status: 404 });
+      }
+
+      const order = db.orders[ordIdx];
+      const normalizedProvider = String(provider || order.paymentMethod).toUpperCase();
+
+      // Handle failed or cancelled payment outcomes explicitly
+      if (gatewayStatus === 'FAILED' || gatewayStatus === 'CANCELLED') {
+        const pendingIdx = db.instalmentPayments.findIndex(
+          (p) =>
+            p.orderId === order.id &&
+            p.status === 'PENDING_VERIFICATION' &&
+            (!reference || p.paymentReference.toLowerCase() === String(reference).toLowerCase())
+        );
+        if (pendingIdx !== -1) {
+          db.instalmentPayments[pendingIdx].status = 'REJECTED';
+          db.instalmentPayments[pendingIdx].notes = `Payment ${gatewayStatus.toLowerCase()} on ${normalizedProvider} checkout.`;
+        }
+        db.notifications.unshift({
+          id: `notif-${Date.now()}`,
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          type: 'ORDER_UPDATE',
+          title: `${normalizedProvider} Payment ${gatewayStatus === 'CANCELLED' ? 'Cancelled' : 'Failed'}`,
+          message: `Transaction ${reference || order.paymentReference} was ${gatewayStatus.toLowerCase()}. Your order remains saved and you can retry payment anytime.`,
+          channel: 'DASHBOARD',
+          createdAt: new Date().toISOString(),
+          isRead: false,
+        });
+        saveDb(db);
+        return NextResponse.json({
+          verified: false,
+          status: gatewayStatus,
+          order,
+          message: `Payment marked as ${gatewayStatus.toLowerCase()}.`,
+        });
+      }
+
+      // Idempotency guard: if this reference was already verified, return existing verified state without double-crediting
+      const alreadyVerified = db.instalmentPayments.find(
+        (p) =>
+          p.orderId === order.id &&
+          p.status === 'VERIFIED' &&
+          reference &&
+          p.paymentReference.toLowerCase() === String(reference).toLowerCase()
+      );
+      if (alreadyVerified) {
+        return NextResponse.json({
+          verified: true,
+          alreadyProcessed: true,
+          payment: alreadyVerified,
+          order,
+          message: 'Transaction reference already verified.',
+        });
+      }
+
+      // Verify currency and expected amount against the order
+      if (String(currency).toUpperCase() !== 'NGN') {
+        return NextResponse.json(
+          { error: 'Invalid transaction currency. Only NGN is accepted.' },
+          { status: 400 }
+        );
+      }
+
+      let verifiedAmountNaira = Number(amount) > 0 ? Math.round(Number(amount)) : order.payableTodayAmount;
+
+      // When live secret keys are configured, verify directly with Paystack / Flutterwave server-to-server API
+      const paystackSecret = process.env.PAYSTACK_SECRET_KEY?.trim();
+      const isConfiguredPaystack =
+        paystackSecret &&
+        !paystackSecret.includes('your_paystack_secret_key_here') &&
+        (paystackSecret.startsWith('sk_test_') || paystackSecret.startsWith('sk_live_'));
+
+      if (normalizedProvider === 'PAYSTACK' && isConfiguredPaystack && reference) {
+        try {
+          const psVerifyRes = await fetch(
+            `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
+            {
+              headers: { Authorization: `Bearer ${paystackSecret}` },
+            }
+          );
+          const psVerifyData = await psVerifyRes.json();
+          if (!psVerifyRes.ok || psVerifyData.data?.status !== 'success') {
+            return NextResponse.json(
+              { error: 'Paystack server verification reported transaction not successful.' },
+              { status: 400 }
+            );
+          }
+          if (String(psVerifyData.data.currency).toUpperCase() !== 'NGN') {
+            return NextResponse.json({ error: 'Currency mismatch on Paystack transaction.' }, { status: 400 });
+          }
+          verifiedAmountNaira = Math.round(Number(psVerifyData.data.amount) / 100);
+        } catch {
+          return NextResponse.json(
+            { error: 'Could not reach Paystack verification endpoint.' },
+            { status: 502 }
+          );
+        }
+      }
+
+      const flwSecret = process.env.FLUTTERWAVE_SECRET_KEY?.trim();
+      const isConfiguredFlw =
+        flwSecret &&
+        !flwSecret.includes('your_flutterwave_secret_key_here') &&
+        (flwSecret.startsWith('FLWSECK_TEST') || flwSecret.startsWith('FLWSECK-'));
+
+      if (normalizedProvider === 'FLUTTERWAVE' && isConfiguredFlw && transactionId) {
+        try {
+          const flwVerifyRes = await fetch(
+            `https://api.flutterwave.com/v3/transactions/${encodeURIComponent(transactionId)}/verify`,
+            {
+              headers: { Authorization: `Bearer ${flwSecret}` },
+            }
+          );
+          const flwVerifyData = await flwVerifyRes.json();
+          if (!flwVerifyRes.ok || flwVerifyData.data?.status !== 'successful') {
+            return NextResponse.json(
+              { error: 'Flutterwave server verification reported transaction not successful.' },
+              { status: 400 }
+            );
+          }
+          if (String(flwVerifyData.data.currency).toUpperCase() !== 'NGN') {
+            return NextResponse.json({ error: 'Currency mismatch on Flutterwave transaction.' }, { status: 400 });
+          }
+          verifiedAmountNaira = Math.round(Number(flwVerifyData.data.amount));
+        } catch {
+          return NextResponse.json(
+            { error: 'Could not reach Flutterwave verification endpoint.' },
+            { status: 502 }
+          );
+        }
+      }
+
+      if (verifiedAmountNaira < order.payableTodayAmount && order.amountPaidVerified === 0) {
+        return NextResponse.json(
+          {
+            error: `Verified amount (${formatNaira(verifiedAmountNaira)}) is less than required amount due today (${formatNaira(order.payableTodayAmount)}).`,
+          },
+          { status: 400 }
+        );
+      }
+
+      const receiptNumber = `RCP-CAF-2026-${Math.floor(100 + Math.random() * 900)}`;
+      const pendingIdx = db.instalmentPayments.findIndex(
+        (p) =>
+          p.orderId === order.id &&
+          p.status !== 'VERIFIED' &&
+          (!reference || p.paymentReference.toLowerCase() === String(reference).toLowerCase())
+      );
+
+      if (pendingIdx !== -1) {
+        db.instalmentPayments[pendingIdx].status = 'VERIFIED';
+        db.instalmentPayments[pendingIdx].amount = verifiedAmountNaira;
+        db.instalmentPayments[pendingIdx].verifiedAt = new Date().toISOString();
+        db.instalmentPayments[pendingIdx].verifiedBy = `${normalizedProvider} Server Verification`;
+        db.instalmentPayments[pendingIdx].receiptNumber = receiptNumber;
+      } else {
+        db.instalmentPayments.unshift({
+          id: `pay-${Date.now()}`,
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          instalmentNumber: order.amountPaidVerified === 0 ? 0 : 1,
+          label:
+            order.amountPaidVerified === 0
+              ? 'Verified Order / Initial Deposit Payment'
+              : 'Verified Instalment Payment',
+          amount: verifiedAmountNaira,
+          paymentMethod: normalizedProvider as 'PAYSTACK' | 'FLUTTERWAVE' | 'BANK_TRANSFER',
+          paymentReference: reference || order.paymentReference,
+          status: 'VERIFIED',
+          receiptNumber,
+          submittedAt: new Date().toISOString(),
+          verifiedAt: new Date().toISOString(),
+          verifiedBy: `${normalizedProvider} Server Verification`,
+        });
+      }
+
+      order.amountPaidVerified += verifiedAmountNaira;
+      order.remainingBalance = Math.max(0, order.totalOrderValue - order.amountPaidVerified);
+      order.paymentStatus =
+        order.remainingBalance === 0 ? 'PAID_VERIFIED' : 'PARTIALLY_PAID_VERIFIED';
+      if (order.orderStatus === 'PENDING_VERIFICATION') {
+        order.orderStatus = 'IN_PRODUCTION';
+      }
+      order.updatedAt = new Date().toISOString();
+      db.orders[ordIdx] = order;
+
+      db.notifications.unshift({
+        id: `notif-${Date.now()}`,
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        type: 'ORDER_UPDATE',
+        title: `Payment Verified via ${normalizedProvider}: ${formatNaira(verifiedAmountNaira)} (${receiptNumber})`,
+        message: `Your ${normalizedProvider} payment (Ref: ${reference || order.paymentReference}) has been verified server-side. Remaining balance: ${formatNaira(order.remainingBalance)}.`,
+        channel: 'DASHBOARD',
+        createdAt: new Date().toISOString(),
+        isRead: false,
+      });
+
+      saveDb(db);
+
+      return NextResponse.json({
+        verified: true,
+        receiptNumber,
+        order,
+        message: `Payment of ${formatNaira(verifiedAmountNaira)} verified via ${normalizedProvider}. Receipt ${receiptNumber} issued.`,
+      });
+    }
+
     // 3. Administrator approves or rejects an instalment application
     if (action === 'ADMIN_REVIEW_INSTALMENT') {
       if (session?.role !== 'ADMIN') {

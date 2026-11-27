@@ -4,13 +4,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
-import { INTERIOR_DESIGN_SERVICES, PRODUCTS_CATALOG } from '@/lib/catalog-data';
+import { INTERIOR_DESIGN_SERVICES } from '@/lib/catalog-data';
 import { formatNaira, getWhatsAppUrl } from '@/lib/format';
 import { useMarketplace } from '@/context/MarketplaceContext';
 import { InteriorDesignProjectRecord } from '@/lib/db-store';
 
 export default function InteriorDesignPage() {
-  const { user, showToast } = useMarketplace();
+  const { user, catalogProducts, showToast } = useMarketplace();
 
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const filteredServices =
@@ -264,7 +264,7 @@ export default function InteriorDesignPage() {
             </div>
 
             <div className="products-grid-3col">
-              {PRODUCTS_CATALOG.filter((p) => p.categorySlug === 'interior-design-decor').map(
+              {catalogProducts.filter((p) => p.categorySlug === 'interior-design-decor').map(
                 (decor) => (
                   <ProductCard key={decor.id} product={decor} />
                 )
